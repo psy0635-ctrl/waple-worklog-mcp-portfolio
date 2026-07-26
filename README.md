@@ -210,11 +210,12 @@ nginx (리버스 프록시, HTTPS) · systemd (사용자 서비스)
 
 | 문서 | 내용 |
 | --- | --- |
+| [docs/waple-worklog-mcp-상세설명.pdf](docs/waple-worklog-mcp-상세설명.pdf) | 프로젝트 전체 과정 상세 설명 (인쇄용) |
 | [docs/integration-manual.md](docs/integration-manual.md) | 설치·배포·연동 절차 |
 | [docs/connector-design.md](docs/connector-design.md) | 근거 수집 설계 |
 | [docs/development-notes.md](docs/development-notes.md) | 개발 기록, 오류 사례, 설계 편차와 근거 |
 | [deploy/README.md](deploy/README.md) | systemd 운영 가이드 |
-| [docs/waple-worklog-mcp-상세설명.pdf](docs/waple-worklog-mcp-상세설명.pdf) | 프로젝트 전체 과정 상세 설명 (인쇄용) |
+
 ---
 
 ## 12. 남은 과제
