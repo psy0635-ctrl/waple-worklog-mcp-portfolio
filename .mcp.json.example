@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "waple-tasklog": {
+      "type": "stdio",
+      "command": ".venv/Scripts/python.exe",
+      "args": ["server.py"],
+      "env": {}
+    }
+  }
+}

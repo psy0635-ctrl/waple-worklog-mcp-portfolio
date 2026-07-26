@@ -1,0 +1,8 @@
+# MCP 서버 실행에 필요한 패키지
+mcp>=1.9.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# 테스트 실행용
+pytest>=8.0.0
