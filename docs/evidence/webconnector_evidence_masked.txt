@@ -1,0 +1,40 @@
+=== Waple MCP 서버 요청 로그 분석 (2026-07-21 ~ 07-25) ===
+
+[CallToolRequest — 발신 IP별]
+     10 [MY_IP]:0
+      2 [LAN_IP]:0
+
+[ListToolsRequest — 발신 IP별]
+     19 [MY_IP]:0
+      8 160.79.106.35:0
+      8 160.79.106.34:0
+      7 [LAN_IP]:0
+      1 160.79.106.141:0
+      1 160.79.106.130:0
+      1 160.79.106.129:0
+
+[Anthropic 클라우드 IP 응답 코드 분포]
+     78 HTTP/1.1" 200
+     21 HTTP/1.1" 202
+
+[Anthropic 클라우드 IP 원문 발췌 (앞 20줄)]
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 202 Accepted
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
