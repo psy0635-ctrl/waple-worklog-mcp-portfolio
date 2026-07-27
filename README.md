@@ -20,15 +20,13 @@
 
 ## 2. 시연
 
-| 영상 | 내용 |
-| --- | --- |
-| [로컬 시연 (3분 51초)](assets/demo-local.mp4) | 초안 생성부터 승인·등록까지 전체 흐름 |
-https://github.com/user-attachments/assets/11a2e83e-085b-435b-8d98-cd3bad4a6dc9
-| [등록 결과 (1분 43초)](assets/demo-waple.mp4) | Waple 웹 화면에서 등록된 업무일지 확인 |
-https://github.com/user-attachments/assets/4606369c-0ba7-4db5-b42f-f2e1ab72ff88
+**로컬 시연 (3분 51초)** — 초안 생성부터 승인·등록까지 전체 흐름
 
-<!-- 영상을 README 안에서 재생시키려면 GitHub 웹 편집기에 파일을 드래그하여
-     생성된 assets URL 로 아래 주석을 교체하십시오. -->
+https://github.com/user-attachments/assets/11a2e83e-085b-435b-8d98-cd3bad4a6dc9
+
+**등록 결과 (1분 43초)** — Waple 웹 화면에서 등록된 업무일지 확인
+
+https://github.com/user-attachments/assets/4606369c-0ba7-4db5-b42f-f2e1ab72ff88
 
 ### 실제 생성된 초안 (2026-07-25)
 
