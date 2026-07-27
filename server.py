@@ -9,6 +9,7 @@ import hashlib
 from contextvars import ContextVar
 import json
 import re
+import time
 from datetime import date, datetime
 from pathlib import Path
 
@@ -98,6 +99,19 @@ _LAST_DRAFT = {"date": None, "submission_memo": None}
 _LAST_DRAFTS: dict[str, dict] = {"_local": _LAST_DRAFT}
 
 
+# [PR #13 이연 항목 처리] _LAST_DRAFTS는 사용자가 늘어날수록 항목이 쌓이지만
+# 항목 자체를 제거하는 경로가 없었다. 등록에 성공하면 값만 None으로 비우고
+# 껍데기 dict는 그대로 남아, 서버를 재시작하기 전까지 계속 누적되는 구조였다.
+#
+# 두 경로 모두를 막아야 실제로 증가가 멈춘다.
+#   ① 등록 성공 → 소비된 스코프를 즉시 삭제 (submit_worklog 성공 분기)
+#   ② 초안만 만들고 등록하지 않은 경우 → TTL 경과 시 정리 (_prune_draft_scopes)
+#
+# "_local"(stdio 경로)은 예외다. _LAST_DRAFT와 같은 dict 객체를 공유하고 있어
+# 삭제하면 그 공유 관계가 끊어지고 기존 동작·테스트가 함께 깨진다.
+_DRAFT_TTL_SECONDS = 24 * 60 * 60  # 24시간 동안 접근이 없으면 정리 대상
+
+
 def _draft_scope() -> str:
     key = _REQUEST_API_KEY.get()
     if key:
@@ -105,11 +119,38 @@ def _draft_scope() -> str:
     return "_local"
 
 
+def _prune_draft_scopes(now: float | None = None) -> int:
+    """TTL이 지난 사용자별 초안 캐시를 정리하고, 삭제한 항목 수를 반환한다.
+
+    - "_local"은 대상에서 제외한다(위 주석 참고).
+    - updated_at 이 없는 항목은 0으로 간주해 정리 대상이 된다.
+    """
+    now = time.time() if now is None else now
+    stale = [
+        scope
+        for scope, draft in _LAST_DRAFTS.items()
+        if scope != "_local" and now - draft.get("updated_at", 0.0) > _DRAFT_TTL_SECONDS
+    ]
+    for scope in stale:
+        del _LAST_DRAFTS[scope]
+    return len(stale)
+
+
 def _current_draft() -> dict:
     """이번 요청의 사용자 스코프에 해당하는 초안 캐시 dict를 반환한다."""
     scope = _draft_scope()
+    if scope == "_local":
+        # stdio 경로. _LAST_DRAFT와 같은 객체이며 정리 대상이 아니므로
+        # updated_at 을 붙이지 않는다 — 기존 dict 형태를 그대로 유지한다.
+        return _LAST_DRAFTS["_local"]
+
+    # 새 스코프를 만들기 전에 오래된 항목부터 정리한다.
+    # (별도 스레드나 스케줄러 없이, 요청이 들어올 때 함께 처리)
+    _prune_draft_scopes()
     if scope not in _LAST_DRAFTS:
         _LAST_DRAFTS[scope] = {"date": None, "submission_memo": None}
+    # 최근 사용 시각 갱신 — 활성 사용자의 초안이 TTL로 지워지지 않도록 한다.
+    _LAST_DRAFTS[scope]["updated_at"] = time.time()
     return _LAST_DRAFTS[scope]
 
 # [멘토 피드백 ② (7/10)] Claude용 전체 초안 재표시 지시문.
@@ -1134,7 +1175,14 @@ async def call_tool(name: str, arguments: dict):
             # used_stored_draft는 위에서 이미 계산됐으므로, 여기서 캐시를 비워도
             # 방금 등록 건의 성공 메시지는 정상 출력된다. 다음 submit부터 빈 캐시를 본다.
             draft["date"] = None
-            draft["submission_memo"] = None
+            draft["submission_memo"] = None# [PR #13 이연 항목 처리] 값만 비우면 스코프 항목이 계속 남는다.
+            # 등록에 성공한 시점은 이 사용자의 초안이 완전히 소비된 시점이므로
+            # 항목 자체를 제거한다. 다음 tasklog 호출 때 새로 만들어지므로
+            # 기능에는 영향이 없다.
+            # "_local"은 _LAST_DRAFT와 같은 객체를 공유하므로 삭제하지 않는다.
+            consumed_scope = _draft_scope()
+            if consumed_scope != "_local":
+                _LAST_DRAFTS.pop(consumed_scope, None)
             # ===========================================================
 
             source_note = (
