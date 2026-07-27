@@ -111,8 +111,8 @@ HTTP 하나로 통일하지 못한 이유가 있습니다.
 ## 6. 빠른 시작
 
 ```bash
-git clone https://github.com/<your-account>/waple-worklog-mcp.git
-cd waple-worklog-mcp
+git clone https://github.com/psy0635-ctrl/waple-worklog-mcp-portfolio.git
+cd waple-worklog-mcp-portfolio
 
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
@@ -150,8 +150,12 @@ python -m pytest -q
 ```
 
 ```
-16 passed
+22 passed, 1 skipped
 ```
+
+`skipped` 1건은 로그 폴더 대소문자 혼재 케이스입니다.
+Windows 파일시스템에서는 대소문자만 다른 폴더를 동시에 만들 수 없어 건너뛰고,
+리눅스에서 별도로 실행해 통과를 확인하였습니다.
 
 | 파일 | 검증 내용 |
 | --- | --- |
@@ -160,6 +164,7 @@ python -m pytest -q
 | `test_guideline17.py` | 승인 절차·필수값 누락·중복 등록 방지 |
 | `test_login_retry.py` | 인증 실패 시 재시도 안내 |
 | `test_token_usage.py` | 세션 로그 기반 토큰 집계 |
+| `test_draft_cleanup.py` | 초안 캐시 누적 방지 (등록 후 삭제, TTL 정리) |
 
 ---
 
@@ -173,12 +178,23 @@ python -m pytest -q
 | 원격(HTTP) 연동 | Claude Code 에서 호출, 서버 로그에 기록 확인 | 실물 검증 |
 | 자동 재시작 | 프로세스 강제 종료 후 PID 변경 확인 | 실물 검증 |
 | 재부팅 후 자동 기동 | `systemctl --user is-enabled`, `Linger=yes` 확인 | 설정 확인 (재부팅 미실시) |
-| claude.ai 웹 커넥터 | 연결·도구 목록 조회까지만 가능, 실호출 불가 | 실물 검증 |
+| claude.ai 웹 커넥터 | 도구 목록 조회 19건 / 실호출 0건 (서버 로그 대조) | 실물 검증 (로그 인접성 기반) |
 
-웹 커넥터가 불가능한 이유는 **제품 제약**입니다.
-웹 UI 는 OAuth 방식만 지원하여 커스텀 헤더 입력란이 없고,
-이 서버는 `x-api-key` 헤더로 인증하기 때문입니다.
-설정 파일을 직접 편집할 수 있는 Claude Code 와 데스크톱 앱에서는 정상 동작합니다.
+웹 커넥터가 되지 않는 이유는 추정이 아니라 서버 로그로 확인하였습니다.
+5일간(2026.07.21 ~ 07.25) 누적된 요청을 발신 경로별로 대조한 결과입니다.
+
+| 발신 경로 | 도구 목록 조회 | 도구 호출 |
+| --- | --- | --- |
+| claude.ai 웹 커넥터 | 19건 | **0건** |
+| 설정 파일 기반 클라이언트 (Claude Code, 데스크톱 앱) | 26건 | 12건 |
+
+웹 커넥터 쪽 응답 코드는 200과 202뿐이고 4xx·5xx는 없었습니다.
+연결·TLS·프록시·목록 조회까지는 정상이었고, **도구 호출 요청 자체가 도달하지 않았습니다.**
+같은 서버·같은 엔드포인트인데 한쪽만 호출이 성립하며,
+두 경로의 차이는 **인증 키를 요청 헤더에 실을 수단이 있는가** 하나뿐입니다.
+이 서버는 `x-api-key` 헤더로 인증하는데, 웹 UI 에서는 해당 헤더를 지정할 방법을 찾지 못했습니다.
+
+마스킹한 로그 발췌는 [docs/evidence/webconnector_evidence_masked.txt](docs/evidence/webconnector_evidence_masked.txt) 에 있습니다.
 
 ---
 
@@ -215,13 +231,13 @@ nginx (리버스 프록시, HTTPS) · systemd (사용자 서비스)
 | [docs/connector-design.md](docs/connector-design.md) | 근거 수집 설계 |
 | [docs/development-notes.md](docs/development-notes.md) | 개발 기록, 오류 사례, 설계 편차와 근거 |
 | [deploy/README.md](deploy/README.md) | systemd 운영 가이드 |
+| [docs/evidence/](docs/evidence/) | 웹 커넥터 검증에 사용한 서버 로그 발췌 (마스킹) |
 
 ---
 
 ## 12. 남은 과제
 
 - `server.py` 에 `transport_security` 를 명시하여 nginx 우회 없이 Host 검증 통과
-- 초안 캐시가 계속 쌓이는 문제 (등록 후 정리 필요)
 - 원격 모드에서 Git·토큰 수집이 불가능한 구조적 한계
 
 ---
