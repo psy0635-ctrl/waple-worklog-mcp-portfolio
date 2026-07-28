@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
 import mcp.types as types
 import subprocess
@@ -77,7 +78,40 @@ def _extract_request_auth(ctx: Context) -> None:
 # [HTTP transport 대비] stateless_http=True: 원격 커넥터(Anthropic 클라우드)는
 # 요청마다 세션이 유지된다는 보장이 없어 무상태로 운용한다 (7/15 스파이크 실측 구성).
 # stdio 모드에서는 이 옵션이 동작에 영향을 주지 않는다.
-mcp = FastMCP("waple-tasklog", stateless_http=True)
+#
+# [transport_security 명시 — 7/28]
+# FastMCP는 host가 127.0.0.1/localhost/::1 일 때"만" DNS Rebinding 방어를
+# 자동으로 켠다 (SDK 1.28.1, mcp/server/fastmcp/server.py 178행).
+# 즉 아래 --host 인자에 0.0.0.0 을 주면 이 방어가 경고 한 줄 없이 전면
+# 비활성화되는데, 정작 argparse 도움말이 "외부 공개 배포 시 0.0.0.0"을
+# 안내하고 있어 실제로 밟기 쉬운 함정이다.
+# 실행 옵션과 무관하게 항상 같은 보안 설정이 적용되도록 코드에 직접 명시한다.
+#
+# 목록은 SDK 자동 기본값(hosts 3 + origins 3)을 전부 포함한 '상위집합'이다.
+# 기본값을 빼면 mcp-remote 브리지 경로(7/21 검증)가 깨질 수 있다.
+#   allowed_hosts   : 리버스 프록시가 Host를 내부 주소로 재작성하므로 그 값이 필수.
+#                     서비스 도메인도 함께 허용해 재작성을 제거해도 동작하도록 대비한다.
+#   allowed_origins : Origin 헤더가 '있을 때만' 검증되며 불일치 시 403.
+mcp = FastMCP(
+    "waple-tasklog",
+    stateless_http=True,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "127.0.0.1:*",          # SDK 자동 기본값 유지
+            "localhost:*",          # SDK 자동 기본값 유지
+            "[::1]:*",              # SDK 자동 기본값 유지
+            "[SERVER_HOST]",        # 서비스 도메인 (배포 환경 값)
+        ],
+        allowed_origins=[
+            "http://127.0.0.1:*",   # SDK 자동 기본값 유지
+            "http://localhost:*",   # SDK 자동 기본값 유지
+            "http://[::1]:*",       # SDK 자동 기본값 유지
+            "https://[SERVER_HOST]",
+            "https://claude.ai",
+        ],
+    ),
+)
 
 # ============================================================
 # 마지막 tasklog 초안 저장소 (세션 내 메모리)
