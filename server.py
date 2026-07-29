@@ -200,6 +200,32 @@ _REDISPLAY_INSTRUCTION = (
 )
 
 
+# [인증 안내 문구 — 7/29 정정]
+#   종전 문구는 "커넥터 설정 → Request Headers → x-api-key"를 안내했으나,
+#   claude.ai 웹 커넥터 UI에는 그 입력란이 없다(7/28 설정 화면 확인. 고급
+#   설정에도 OAuth 클라이언트 ID·시크릿뿐). 존재하지 않는 화면을 지시해
+#   사용자를 막다른 길로 보내던 안내라, 실제 가능한 경로로 교체한다.
+#   같은 문구를 쓰는 곳이 waple_login·submit_worklog 2개라 상수로 분리한다
+#   (한쪽만 고쳐 안내가 서로 어긋나는 것을 방지).
+#   서버 URL을 하드코딩하지 않는 이유: 배포 주소가 환경마다 다르고,
+#   공개 저장소에서는 마스킹 대상이라 문구에 박아두면 관리가 갈라진다.
+_HEADER_AUTH_GUIDE = (
+    "이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n"
+    "헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n"
+    "1) Claude Code\n"
+    "   claude mcp add --transport http waple-remote <서버 URL> "
+    "--header \"x-api-key: 발급받은키\"\n\n"
+    "2) Claude 데스크톱 앱 (mcp-remote 브리지)\n"
+    "   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n"
+    "   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n"
+    "3) 로컬 실행 (stdio)\n"
+    "   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\n"
+    "claude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n"
+    "인증할 수 없습니다 (2026-07-28 확인).\n\n"
+    "API 키 발급: Waple → 환경설정 → API설정"
+)
+
+
 # ============================================================
 # .env 파일 읽기/쓰기 헬퍼
 # ============================================================
@@ -909,10 +935,8 @@ async def call_tool(name: str, arguments: dict):
                     type="text",
                     text=(
                         "⚠️ 원격 커넥터 환경에서는 API 키를 채팅으로 입력하지 않습니다.\n"
-                        "Claude 커넥터 설정 → Request Headers → x-api-key 항목에 "
-                        "Waple API 키를 입력한 뒤 다시 시도해 주세요.\n"
                         "(보안상 원격 서버에는 키가 저장되지 않으며, 매 요청 헤더로만 전달됩니다.)\n\n"
-                        "API 키 발급: Waple → 환경설정 → API설정"
+                        + _HEADER_AUTH_GUIDE
                     )
                 )]
             try:
@@ -927,7 +951,7 @@ async def call_tool(name: str, arguments: dict):
                 type="text",
                 text=(
                     f"{mark} {result['message']}\n\n"
-                    "이 키는 커넥터 설정(x-api-key 헤더)에서 관리되며 "
+                    "이 키는 요청 헤더(x-api-key)로 전달된 값이며 "
                     "서버에 저장되지 않습니다."
                 )
             )]
@@ -1126,10 +1150,8 @@ async def call_tool(name: str, arguments: dict):
                 return [types.TextContent(
                     type="text",
                     text=(
-                        "⚠️ 커넥터에 API 키가 설정되지 않았습니다.\n"
-                        "Claude 커넥터 설정 → Request Headers → x-api-key 항목에 "
-                        "Waple API 키를 입력해 주세요.\n\n"
-                        "API 키 발급: Waple → 환경설정 → API설정"
+                        "⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n"
+                        + _HEADER_AUTH_GUIDE
                     )
                 )]
             return [types.TextContent(
