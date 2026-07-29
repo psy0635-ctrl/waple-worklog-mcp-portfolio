@@ -317,3 +317,47 @@ def test_tasklog_still_runs_in_stdio_mode(monkeypatch):
     for scope in list(server._LAST_DRAFTS):
         if scope != "_local":
             server._LAST_DRAFTS.pop(scope, None)
+
+
+# ── [fix/auth-guide] 인증 실패 안내가 실재하는 경로만 지시하는지 ──────────
+
+def _http_reply(tool, args):
+    """HTTP(원격) 모드로 도구를 호출해 응답 텍스트를 돌려준다.
+
+    키가 없으면 두 도구 모두 조기 반환하므로 네트워크 요청은 발생하지 않는다.
+    """
+    token = server._REQUEST_IS_HTTP.set(True)
+    try:
+        result = asyncio.run(server.call_tool(tool, args))
+    finally:
+        server._REQUEST_IS_HTTP.reset(token)
+    return result[0].text
+
+
+def test_auth_guide_does_not_point_to_nonexistent_ui():
+    """존재하지 않는 UI("커넥터 설정 → Request Headers")를 지시하지 않는지.
+
+    claude.ai 웹 커넥터에는 커스텀 헤더 입력란이 없다(7/28 설정 화면 확인).
+    종전 안내는 사용자를 막다른 길로 보냈다.
+    """
+    for tool, args in [("submit_worklog", {"memo": "x"}), ("waple_login", {})]:
+        text = _http_reply(tool, args)
+        assert "Request Headers" not in text, tool
+
+
+def test_auth_guide_lists_working_paths():
+    """실제로 헤더를 지정할 수 있는 3경로를 모두 안내하는지."""
+    for tool, args in [("submit_worklog", {"memo": "x"}), ("waple_login", {})]:
+        text = _http_reply(tool, args)
+        assert "claude mcp add" in text, tool          # Claude Code
+        assert "mcp-remote" in text, tool               # 데스크톱 브리지
+        assert "stdio" in text, tool                    # 로컬 실행
+        assert "웹 커넥터" in text, tool                 # 불가 경로 명시
+
+
+def test_auth_guide_is_shared_by_both_tools():
+    """두 도구가 같은 상수를 참조하는지 — 한쪽만 고쳐 어긋나는 것을 방지."""
+    a = _http_reply("submit_worklog", {"memo": "x"})
+    b = _http_reply("waple_login", {})
+    assert server._HEADER_AUTH_GUIDE in a
+    assert server._HEADER_AUTH_GUIDE in b
