@@ -85,11 +85,13 @@ Project MCPs (...\llm팀\.mcp.json)
 ```
 
 - 하나의 `server.py`가 **stdio와 Streamable HTTP 두 가지 transport**를 모두 지원합니다.
-- `tasklog`는 로컬 Git 저장소와 Claude Code 세션 로그를 읽으므로 **로컬(stdio) 전용**입니다.
-  원격 서버는 사용자 PC의 파일에 접근할 수 없어 `chat_tasklog`를 사용합니다.
-  (7/21 실측: 원격에서 `tasklog`를 호출하면 초안 자체는 생성되지만 Git 커밋·
-  변경 파일·토큰 사용량이 모두 비어 있습니다. 이중 transport 구조를 유지하는
-  이유입니다.)
+- `tasklog`는 로컬 Git 저장소와 Claude Code 세션 로그를 읽으므로 **로컬(stdio) 전용**이며,
+  HTTP(원격) 모드에서는 호출이 차단됩니다. 원격 환경에서는 `chat_tasklog`를 사용합니다.
+  (7/29 정정: 종전 기록은 "원격에서 호출하면 초안은 생성되나 수집 항목이 모두
+  비어 있다"였으나, 재실측 결과 **배포 서버 자신의 Git 저장소가 그대로 수집**되어
+  사용자가 하지 않은 커밋이 초안에 채워졌습니다. 원격 서버가 읽을 수 있는 것은
+  사용자 PC가 아니라 서비스의 `WorkingDirectory`이기 때문입니다. 이중 transport
+  구조를 유지하는 이유입니다.)
 - claude.ai **웹**은 커스텀 헤더를 지원하지 않아 연결할 수 없습니다. 채팅 UI에서
   쓰려면 데스크톱 앱 + `mcp-remote` 브리지를 사용합니다(7-2절).
 - Waple과의 통신은 `waple_login`, `submit_worklog` 두 도구에서만 발생합니다.
@@ -196,11 +198,12 @@ MCP 서버는 사내 서버에 배포되어 있어, **레포를 클론하지 않
 `업무일지 등록/수정`, `업무일지 조회` 체크박스 둘 다 체크 → 발급하기
 
 > **원격과 로컬의 기능 차이**
-> 원격 서버는 사용자 PC의 파일에 접근할 수 없어, Git 커밋·변경 파일·토큰
-> 사용량을 자동 수집하는 `tasklog`가 정상 동작하지 않습니다(초안은 생성되나
-> 자동 수집 항목이 비어 있음). 원격 환경에서는 대화 내용을 근거로 삼는
-> `chat_tasklog`를 사용합니다. Git 기반 자동 수집이 필요하면 로컬 설치(7-4)를
-> 사용하세요.
+> 원격 서버는 사용자 PC의 파일에 접근할 수 없으므로, Git 커밋·변경 파일·토큰
+> 사용량을 자동 수집하는 `tasklog`는 HTTP 모드에서 **차단**됩니다. 차단하지
+> 않으면 배포 서버 자신의 저장소가 수집되어, 사용자가 하지 않은 작업이
+> 업무일지에 사실처럼 실립니다(7/29 실측). 원격 환경에서는 대화 내용을
+> 근거로 삼는 `chat_tasklog`를 사용하고, Git 기반 자동 수집이 필요하면
+> 로컬 설치(7-4)를 사용하세요.
 
 ---
 
@@ -362,7 +365,7 @@ Claude가 API 키를 요청하면 발급받은 키를 입력합니다. 로그인
 | 도구 | 역할 | 입력 |
 |---|---|---|
 | `waple_login` | API 키를 입력받아 검증하고 로컬에 저장 | `api_key`(필수) |
-| `tasklog` | 오늘 Git 커밋·status·diff 규모를 수집해 3항목(오늘 한 일/상세 진행 내용/내일 계획) 형식 업무일지 초안 생성 | `memo`(선택), `tomorrow_plan`(선택) |
+| `tasklog` | 오늘 Git 커밋·status·diff 규모를 수집해 3항목(오늘 한 일/상세 진행 내용/내일 계획) 형식 업무일지 초안 생성. **로컬(stdio) 전용 — HTTP 모드에서는 차단** | `memo`(선택), `tomorrow_plan`(선택) |
 | `chat_tasklog` | 일반 채팅(Git 접근 불가 환경)용 초안 생성 — Claude가 정리한 근거를 인자로 받아 3항목 형식으로 규격화 | `activities`(선택), `created_files`(선택), `memo`(선택), `tomorrow_plan`(선택), `needs_confirmation`(선택) |
 | `submit_worklog` | 승인된 내용을 Waple에 실제 등록 | `memo`(필수), `target_date`(선택), `title`(선택) |
 
@@ -378,6 +381,12 @@ Claude가 API 키를 요청하면 발급받은 키를 입력합니다. 로그인
 
 ### tasklog 상세
 
+- **HTTP(원격) 모드에서는 호출이 차단됩니다.** 이 도구가 읽는 대상은 서버
+  프로세스가 실행 중인 컴퓨터의 저장소이지 사용자의 컴퓨터가 아니므로,
+  원격에서 그대로 실행하면 배포 서버의 커밋이 사용자 업무일지에 실립니다.
+  `_REQUEST_IS_HTTP`로 판별해 수집 이전에 조기 반환하며, 이때 초안 캐시도
+  건드리지 않아 `submit_worklog`가 잘못된 초안을 집어갈 경로가 없습니다.
+  원격에서는 `chat_tasklog`를 사용하세요 (7/29).
 - `memo`: Git 기록에 안 남는 활동(회의, 자료 조사 등)을 사용자가 직접
   입력하면 "오늘 한 일" 항목에 반영됩니다.
 - `tomorrow_plan`: "내일(향후) 계획" 항목에 들어갈 내용입니다. 비어 있으면
@@ -581,7 +590,26 @@ python -m pytest llm팀/test_connector.py -v
 | 데스크톱 앱 config `type:"http"` 직접 지정 | ❌ 미지원. 데스크톱 config는 stdio 스키마만 인식 |
 | 데스크톱 앱 + `mcp-remote` 브리지 | ✅ `running` 확인 후 `waple_login` 성공(키 미입력 상태) |
 | 데스크톱 앱 `${환경변수}` 치환 | ✅ `env` 값이 `args`에 정상 주입됨 |
-| 원격에서 `tasklog` 자동 수집 | ⚠️ 초안은 생성되나 Git·토큰 수집 불가 (설계상 제약, 3절) |
+| 원격에서 `tasklog` 자동 수집 | ❌ **기존 서술 정정(7/29)** — 수집이 비는 게 아니라 배포 서버 저장소가 수집됨. 아래 11-4절 참조 |
+
+### 11-4. 원격 `tasklog` 차단 검증 (7/29)
+
+| 항목 | 결과 |
+|---|---|
+| 원인 확인 | ✅ `systemctl --user cat waple-mcp` → `WorkingDirectory=%h/2026-uxis-mirae/llm팀`. 원격 `tasklog`가 읽던 저장소가 이 경로임을 실측 |
+| 차단 동작 (배포 서버) | ✅ `tools/call`로 `tasklog` 호출 → 차단 메시지 반환, 서버 로그에 `CallToolRequest` 기록 |
+| 초안 캐시 미오염 | ✅ 조기 반환으로 `_LAST_DRAFT`·사용자 스코프 캐시 모두 미변경 (단위 테스트) |
+| stdio 회귀 | ✅ 로컬 경로는 기존대로 초안 생성 (단위 테스트, 수집 함수 monkeypatch) |
+| 단위 테스트 | ✅ `test_connector.py` 3케이스 추가 |
+
+> 검증 요청 예시(세션 ID 없이 동작 — `stateless_http=True` 구성):
+>
+> ```bash
+> curl -s -X POST https://[SERVER_URL]/llm/mcp \
+>   -H "Content-Type: application/json" \
+>   -H "Accept: application/json, text/event-stream" \
+>   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"tasklog","arguments":{}}}'
+> ```
 
 ---
 
@@ -599,11 +627,11 @@ python -m pytest llm팀/test_connector.py -v
 | 원격 커넥터가 421 Misdirected Request 반환 | nginx가 원래 Host를 그대로 전달 | `proxy_set_header Host 127.0.0.1:8010` 적용 (매뉴얼 4-3절) |
 | 브라우저는 되는데 원격 커넥터만 연결 실패 | 인증서 중간 CA 누락 | fullchain 설치 (매뉴얼 4-4절) |
 | claude.ai 웹 커넥터가 인증되지 않음 | 웹 UI가 커스텀 헤더를 지원하지 않음 | 제품 제약. Claude Code `--header` 경로 사용 |
-| 원격 커넥터 연결이 갑자기 끊김 | 서버 재부팅으로 `nohup` 프로세스 소멸 | 매뉴얼 4-5절 기동 명령으로 재실행 |
+| 원격 커넥터 연결이 갑자기 끊김 | 서비스 중단 (재부팅·크래시) | systemd가 자동 재기동. `systemctl --user status waple-mcp`로 확인, 필요 시 `restart` (매뉴얼 4-5절) |
 | 데스크톱 config에 `url`/`type:"http"`를 넣었더니 항목이 사라지거나 앱이 설정을 무시 | 데스크톱 config는 stdio 스키마만 검증 | `mcp-remote` 브리지 방식으로 등록 (7-2절) |
 | 데스크톱 `waple-remote`가 `running`인데 도구 호출 시 인증 실패 | `--header` 값의 콜론 뒤 공백으로 인자 파싱이 깨짐 | `x-api-key:키` 형태로 공백 없이 지정 |
 | 데스크톱 원격 등록 직후 잠깐 연결 실패 | `npx`가 `mcp-remote`를 처음 내려받는 중 | 10~30초 후 재확인 |
-| 원격 연결인데 업무일지에 Git 커밋이 하나도 안 잡힘 | 원격 서버가 사용자 PC 파일에 접근 불가 | 정상 동작. `chat_tasklog` 사용 또는 로컬 설치(7-4절) |
+| 원격에서 `tasklog` 호출 시 "원격 연결에서는 사용할 수 없습니다" 응답 | 의도된 차단 — 원격 서버는 사용자 PC가 아니라 자기 저장소를 읽음 | 정상 동작. `chat_tasklog` 사용 또는 로컬 설치(7-4절) |
 
 ---
 
@@ -693,16 +721,30 @@ python -m pytest llm팀/test_connector.py -v
       전달 성공. 데스크톱 config가 `type:"http"` 스키마를 지원하지 않는다는
       점과 우회 경로를 7-2절에 문서화 (7/21, 멘토 요청 대응)
 - [x] 연동 매뉴얼 작성 — `docs/integration-manual.md` (배포 도메인·nginx 설정·인증서 요구사항·오류 대응표, 7/18 작성 · 7/21 갱신)
+- [x] `_LAST_DRAFTS` 캐시 누적 정리 — 등록 성공 시 사용자 스코프 삭제 + TTL 정리.
+      `_LAST_DRAFTS["_local"]`은 `_LAST_DRAFT`와 같은 객체를 공유하므로 삭제
+      대상에서 제외(제외하지 않으면 stdio 경로가 조용히 깨짐).
+      `test_draft_cleanup.py` 신규 (7/27)
+- [x] systemd 사용자 서비스 전환 — `nohup`은 재부팅 시 소멸하고 재실행 시 포트
+      충돌을 유발하므로 사용 중단. `Restart=always` + `loginctl enable-linger`로
+      전환하고, 프로세스 강제 종료 후 PID 변경으로 자동 복구를 실물 검증 (7/27)
+- [x] `transport_security` 명시 — FastMCP는 생성자의 `host`가 `127.0.0.1`/
+      `localhost`/`::1` 일 때만 DNS Rebinding 방어를 자동 활성화하는데, 실행 인자
+      도움말이 "외부 공개 배포 시 0.0.0.0"을 안내하고 있어 방어가 경고 없이
+      꺼질 수 있는 구조였다. 허용 Host·Origin을 코드에 직접 명시하고, SDK 자동
+      기본값의 상위집합으로 구성해 기존 경로 회귀 없음. nginx의 Host 재작성은
+      이중 안전망으로 유지 (7/28)
+- [x] 원격(HTTP) 모드 `tasklog` 차단 — 원격 서버의 `tasklog`가 사용자 PC가 아니라
+      배포 서버의 Git 저장소(`WorkingDirectory`)를 읽어, 사용자가 하지 않은 커밋이
+      업무일지에 사실처럼 실리는 문제를 확인했다. `_REQUEST_IS_HTTP`로 판별해
+      `call_tool`의 `tasklog` 분기 진입 시 조기 반환하며, 같은 가드가
+      `_collect_today_token_usage`(서버 계정의 `~/.claude` 로그)도 함께 막는다.
+      조기 반환이라 초안 캐시가 오염되지 않아 `submit_worklog` 오등록 경로도 없다.
+      배포 서버 실측으로 차단 응답·서버 로그 확인, `test_connector.py` 3케이스 추가.
+      기존 "Git·토큰이 비어 있음" 서술 정정 (7/29, 11-4절)
 
 ## 16. 앞으로 해야 할 작업
 
-- [ ] `server.py`에 `transport_security` 명시 — 현재는 nginx의 Host 재작성으로
-      421(FastMCP DNS Rebinding 방지)을 우회 중이며, 서버 코드에서 허용 Host를
-      직접 지정하는 것이 정석 해법 (매뉴얼 4-3절)
-- [ ] MCP 서버 systemd 서비스 등록 — 현재 `nohup` 실행이라 서버 재부팅 시
-      프로세스가 사라짐. 상시 가동 필요
-- [ ] `_LAST_DRAFTS` 캐시 무한 증가 정리 — 사용자별 스코프가 계속 쌓이므로
-      등록 완료 후 스코프 삭제 또는 만료 처리 필요
 - [ ] `_REDISPLAY_INSTRUCTION` 은닉 지시를 출처가 드러나는 투명 포맷으로 전환
 - [ ] 업무일지 초안 체크박스 포맷 지원 여부 확인 (Waple Export 기능으로
       Lexical JSON 구조 실측 예정)
@@ -710,9 +752,11 @@ python -m pytest llm팀/test_connector.py -v
 - [ ] 지침 17번 12항목 중 미검증 5개 항목 테스트 진행
       (🟡 2·4·5 실물 미실행, 🔴 6·7 프롬프트 강제)
 - [ ] Claude Code 로그 경로 의존성 모니터링 — 토큰 집계가 `~/.claude/projects/` 폴더 네이밍 규칙(비공식, 7/10 실측)에 의존하므로 Claude Code 업데이트 시 조용히 "수집 불가"로 폴백될 수 있음. 버전 업데이트 후 토큰 표시가 사라지면 이 규칙 변경을 먼저 의심할 것 (PR#10 리뷰 백로그)
-- [ ] 원격 환경에서 `tasklog` 호출 시 안내 문구 추가 — 현재는 Git·토큰이 비어
-      있는 초안이 그대로 생성되어, 사용자가 수집 실패를 눈치채기 어려움.
-      HTTP 모드에서는 `chat_tasklog` 사용을 권하는 안내가 필요 (7/21 실측)
+- [ ] 원격 커넥터 인증 실패 안내 문구 수정 — HTTP 모드에서 `x-api-key` 헤더가
+      없을 때 "커넥터 설정 → Request Headers → x-api-key"를 안내하는데, claude.ai
+      웹 커넥터 UI에는 해당 입력란이 존재하지 않는다(7/28 설정 화면 확인).
+      실제 가능한 경로(Claude Code `--header`, 데스크톱 `mcp-remote` 브리지,
+      로컬 stdio)를 제시하도록 수정 필요
 - [ ] `test_connector.py` import 문 상단 정리 (비블로킹)
 
 ---

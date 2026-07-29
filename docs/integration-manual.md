@@ -22,8 +22,8 @@ Claude / Claude Code에서 하루 작업 내역을 수집해 Waple 업무일지 
 같은 `server.py` 하나가 stdio와 Streamable HTTP 두 방식을 모두 지원합니다(이중 transport).
 
 **A·B는 레포 클론·Python 설치가 필요 없습니다.** Waple API 키만 있으면 연결됩니다.
-단, 원격은 사용자 PC의 Git 기록에 접근할 수 없어 Git 기반 자동 수집(`tasklog`)이
-동작하지 않습니다(2-4절 참고).
+단, 원격은 사용자 PC의 Git 기록에 접근할 수 없으므로 Git 기반 자동 수집(`tasklog`)은
+HTTP 모드에서 차단됩니다(2-4절 참고). 원격에서는 `chat_tasklog`를 사용합니다.
 
 ### ⚠️ claude.ai 웹(브라우저)은 사용할 수 없습니다 — 데스크톱 앱으로 우회
 
@@ -85,6 +85,10 @@ claude mcp list
 - 원격 서버는 사용자 PC의 Git 저장소와 Claude Code 세션 로그에 접근할 수 없습니다.
   따라서 원격 경로에서는 Git 기반 `tasklog`가 아니라 대화 기반 `chat_tasklog`를 사용합니다.
   Git 커밋·토큰 집계가 필요하면 3장의 로컬 stdio 경로를 사용하세요.
+- **원격에서 `tasklog`를 호출하면 차단 메시지가 반환됩니다(7/29).** 차단하지 않으면
+  서버가 접근할 수 있는 유일한 저장소, 즉 **배포 서버 자신의 저장소**가 수집되어
+  사용자가 하지 않은 커밋이 업무일지에 실립니다. 수집이 비어 있는 것보다 알아채기
+  어려운 형태라 안내가 아니라 차단으로 처리했습니다.
 
 ### 2-5. ⚠️ 키 취급 주의
 
@@ -294,21 +298,27 @@ openssl s_client -connect [SERVER_URL]:443 -servername [SERVER_URL] < /dev/null 
 | 포트 | 8010 (8000·8081은 타 서비스 사용 중) |
 | 로그 | `~/mcp.log` |
 
-기동 명령:
+서비스 운영 (systemd 사용자 서비스, 7/27 전환 완료):
 
 ```bash
-cd ~/2026-uxis-mirae/llm팀
-source .venv/bin/activate
-nohup python server.py --transport streamable-http --port 8010 > ~/mcp.log 2>&1 &
+systemctl --user status waple-mcp     # 상태 확인
+systemctl --user restart waple-mcp    # 재시작 (배포 후)
+tail -f ~/mcp.log                     # 로그
 ```
 
-> **주의:** `nohup` 실행은 서버 재부팅 시 사라집니다.
-> 시연·테스트 전 반드시 아래로 생존 여부를 확인하십시오.
+- 유닛 파일: `~/.config/systemd/user/waple-mcp.service` (레포 사본은 `deploy/waple-mcp.service`)
+- `Restart=always` + `loginctl enable-linger`로 크래시·재부팅 후 자동 복구합니다.
+- `WorkingDirectory`는 `%h/2026-uxis-mirae/llm팀`입니다. 이 경로가 원격 `tasklog`가
+  읽던 저장소였으며, 그래서 HTTP 모드에서는 `tasklog`를 차단합니다(7/29, 7절 참조).
+
+> 🔴 **`nohup` 방식은 사용하지 마십시오.** systemd가 이미 8010 포트를 점유하고
+> 있어 포트 충돌이 발생하며, 어느 프로세스가 응답 중인지 구분되지 않습니다.
+
+> 생존 확인:
 > ```bash
 > curl -s -o /dev/null -w "%{http_code}\n" https://[SERVER_URL]/llm/mcp
 > ```
 > **406**이 정상입니다(MCP는 `Accept: text/event-stream`을 요구). 000·502면 서버가 내려간 상태입니다.
-> 상시 가동이 필요하면 systemd 서비스 등록이 후속 과제입니다.
 
 ---
 
@@ -317,7 +327,7 @@ nohup python server.py --transport streamable-http --port 8010 > ~/mcp.log 2>&1 
 | 도구 | 역할 | 비고 |
 | --- | --- | --- |
 | `waple_login` | API 키 검증·저장 | stdio 전용 저장. HTTP 모드에서는 저장 차단(헤더 방식 사용) |
-| `tasklog` | Git 커밋·파일·토큰 기반 초안 생성 | 로컬 Claude Code 전용. 원격에서 호출하면 초안은 생성되나 수집 항목이 모두 비어 있음 |
+| `tasklog` | Git 커밋·파일·토큰 기반 초안 생성 | 로컬 Claude Code 전용. **HTTP(원격) 모드에서는 호출 차단** — 차단하지 않으면 배포 서버 자신의 저장소가 수집됨 (7/29 정정) |
 | `chat_tasklog` | 대화 내용 기반 초안 생성 | 원격 커넥터용. 토큰은 "집계 대상 아님" 표기 |
 | `submit_worklog` | 승인된 초안 등록 | 서버 캐시 원본 그대로 전송 → 미리보기 = 등록본 100% 일치 |
 
@@ -346,7 +356,7 @@ nohup python server.py --transport streamable-http --port 8010 > ~/mcp.log 2>&1 
 | 데스크톱 config에 `url`/`type:"http"`를 넣었더니 항목이 사라짐 | 데스크톱 config는 stdio 스키마만 검증 | `mcp-remote` 브리지 방식으로 등록 (2-6절) |
 | 데스크톱 `waple-remote`가 `running`인데 인증 실패 | `--header` 값의 콜론 뒤 공백으로 인자 파싱이 깨짐 | `x-api-key:키` 형태로 공백 없이 지정 |
 | 데스크톱 원격 등록 직후 잠깐 연결 실패 | `npx`가 `mcp-remote`를 처음 내려받는 중 | 10~30초 후 재확인 |
-| 원격 연결인데 Git 커밋이 하나도 안 잡힘 | 원격 서버가 사용자 PC 파일에 접근 불가 | 정상 동작. `chat_tasklog` 사용 또는 로컬 경로(3장) |
+| 원격에서 `tasklog` 호출 시 "원격 연결에서는 사용할 수 없습니다" 응답 | 의도된 차단 — 원격 서버는 사용자 PC가 아니라 자기 저장소를 읽음 | 정상 동작. `chat_tasklog` 사용 또는 로컬 경로(3장) |
 | **리눅스 curl은 실패, 브라우저는 성공** | 인증서 중간 CA 누락 | 4-4절 fullchain 설치 |
 | 등록했는데 결과 불명 | 네트워크 오류 등 | 캐시가 유지되므로 "등록해" 재시도 (중복 등록은 upsert라 안전) |
 | 커넥터 연결 실패(000·502) | 서버 미기동 | 4-5절 기동 명령으로 재실행 |
@@ -377,5 +387,7 @@ nohup python server.py --transport streamable-http --port 8010 > ~/mcp.log 2>&1 
 | 2026-07-21 | 원격 커넥터 `x-api-key` 전달 및 Waple 등록 E2E (Claude Code) | ✅ 실등록 확인 |
 | 2026-07-21 | 데스크톱 앱 config에 `type:"http"` 직접 지정 | ❌ 미지원(stdio 스키마만 인식) |
 | 2026-07-21 | 데스크톱 앱 + `mcp-remote` 브리지 원격 연동 | ✅ 키 미입력 상태로 `waple_login` 성공 |
-| 2026-07-21 | 원격에서 `tasklog` 자동 수집 | ⚠️ 초안 생성되나 Git·토큰 수집 불가(설계상 제약) |
+| 2026-07-21 | 원격에서 `tasklog` 자동 수집 | ⚠️ 당시 기록 "Git·토큰 수집 불가" — 7/29 정정됨(아래) |
+| 2026-07-29 | 원격 `tasklog`가 배포 서버 저장소를 수집하던 문제 확인 | ✅ 원인 `WorkingDirectory=%h/2026-uxis-mirae/llm팀` 실측 |
+| 2026-07-29 | HTTP 모드 `tasklog` 차단 적용 후 배포 서버 실측 | ✅ 차단 응답 반환, 서버 로그 `CallToolRequest` 확인 |
 | — | claude.ai 웹(브라우저) 커스텀 커넥터 | ❌ 제품 제약으로 불가 → 데스크톱 앱으로 우회 |
