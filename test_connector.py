@@ -256,3 +256,64 @@ def test_draft_scope_name_hides_key():
     assert "secret-raw-key" not in scope
     assert len(scope) == 16
     server._LAST_DRAFTS.pop(scope, None)
+
+# ── [fix/remote-tasklog-guard] 원격(HTTP) 모드 Git 수집 차단 검증 ──────────
+
+def test_tasklog_blocked_in_http_mode():
+    """원격(HTTP) 모드에서 tasklog가 Git·토큰을 수집하지 않고 차단되는지.
+
+    실제 문제: 원격 서버의 tasklog는 사용자 PC가 아니라 배포 서버의 저장소를
+    읽어, 사용자가 하지 않은 커밋이 업무일지 본문에 사실처럼 실렸다.
+    """
+    server._LAST_DRAFT["date"] = None
+    server._LAST_DRAFT["submission_memo"] = None
+
+    token = server._REQUEST_IS_HTTP.set(True)   # HTTP 요청 상황 재현
+    try:
+        result = asyncio.run(server.call_tool("tasklog", {"memo": "원격 호출"}))
+    finally:
+        server._REQUEST_IS_HTTP.reset(token)    # 다른 테스트로 값이 새지 않게 복구
+
+    text = result[0].text
+    assert "chat_tasklog" in text                     # 대체 경로를 안내한다
+    assert "오늘 한 일" not in text                    # 초안이 생성되지 않았다
+    assert "Git 저장소를 찾을 수 없습니다" not in text  # repo_root 분기로 새지 않았다
+    assert server._LAST_DRAFT["date"] is None         # 초안 캐시 미오염
+
+
+def test_tasklog_block_does_not_pollute_user_scope_cache():
+    """HTTP 사용자 스코프 캐시에도 초안이 남지 않는지 (submit_worklog 오등록 방지)."""
+    token_http = server._REQUEST_IS_HTTP.set(True)
+    token_key = server._REQUEST_API_KEY.set("remote-user-key")
+    try:
+        scope = server._draft_scope()
+        asyncio.run(server.call_tool("tasklog", {"memo": "원격 호출"}))
+        cached = server._LAST_DRAFTS.get(scope)
+    finally:
+        server._REQUEST_API_KEY.reset(token_key)
+        server._REQUEST_IS_HTTP.reset(token_http)
+
+    assert cached is None or cached["submission_memo"] is None
+    server._LAST_DRAFTS.pop(scope, None)  # 테스트 간 오염 방지
+
+
+def test_tasklog_still_runs_in_stdio_mode(monkeypatch):
+    """stdio(로컬) 모드는 기존대로 Git 수집 경로를 탄다 — 회귀 방지.
+
+    실제 git 실행에 의존하지 않도록 수집 함수를 전부 가짜로 바꾼다.
+    """
+    monkeypatch.setattr(server, "_get_repo_root", lambda: "/fake/repo")
+    monkeypatch.setattr(server, "_collect_today_commits", lambda root: [])
+    monkeypatch.setattr(server, "_collect_git_status",
+                        lambda root: {"staged": [], "unstaged": []})
+    monkeypatch.setattr(server, "_collect_git_diff_stat", lambda root: [])
+    monkeypatch.setattr(server, "_collect_today_token_usage", lambda: None)
+
+    result = asyncio.run(server.call_tool("tasklog", {"memo": "로컬 호출"}))
+    text = result[0].text
+    assert "원격 연결에서는" not in text   # 차단 메시지가 아니다
+    assert "로컬 호출" in text            # 초안이 정상 생성됐다
+
+    for scope in list(server._LAST_DRAFTS):
+        if scope != "_local":
+            server._LAST_DRAFTS.pop(scope, None)
