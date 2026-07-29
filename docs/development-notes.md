@@ -742,6 +742,16 @@ python -m pytest llm팀/test_connector.py -v
       조기 반환이라 초안 캐시가 오염되지 않아 `submit_worklog` 오등록 경로도 없다.
       배포 서버 실측으로 차단 응답·서버 로그 확인, `test_connector.py` 3케이스 추가.
       기존 "Git·토큰이 비어 있음" 서술 정정 (7/29, 11-4절)
+- [x] 원격 커넥터 인증 실패 안내 문구 정정 — HTTP 모드에서 `x-api-key` 헤더가
+      없을 때 "커넥터 설정 → Request Headers → x-api-key"를 안내했으나,
+      claude.ai 웹 커넥터 UI에는 그 입력란이 존재하지 않는다(7/28 설정 화면
+      확인. 고급 설정에도 OAuth 클라이언트 ID·시크릿뿐). 사용자를 막다른 길로
+      보내는 안내였으므로, 실제 가능한 3경로(Claude Code `--header`, 데스크톱
+      `mcp-remote` 브리지, 로컬 stdio)와 웹 커넥터 불가 사실을 제시하도록
+      교체했다. 같은 문구를 `waple_login`·`submit_worklog` 두 곳에 복붙해 둔
+      것이 애초 원인이라 `_HEADER_AUTH_GUIDE` 상수로 분리하고, 두 도구가 같은
+      상수를 참조하는지까지 테스트로 고정했다. 배포 서버 실측으로 응답 확인,
+      `test_connector.py` 3케이스 추가 (`9585cbd`·`7424cd1`, 7/29)
 
 ## 16. 앞으로 해야 할 작업
 
@@ -752,11 +762,6 @@ python -m pytest llm팀/test_connector.py -v
 - [ ] 지침 17번 12항목 중 미검증 5개 항목 테스트 진행
       (🟡 2·4·5 실물 미실행, 🔴 6·7 프롬프트 강제)
 - [ ] Claude Code 로그 경로 의존성 모니터링 — 토큰 집계가 `~/.claude/projects/` 폴더 네이밍 규칙(비공식, 7/10 실측)에 의존하므로 Claude Code 업데이트 시 조용히 "수집 불가"로 폴백될 수 있음. 버전 업데이트 후 토큰 표시가 사라지면 이 규칙 변경을 먼저 의심할 것 (PR#10 리뷰 백로그)
-- [ ] 원격 커넥터 인증 실패 안내 문구 수정 — HTTP 모드에서 `x-api-key` 헤더가
-      없을 때 "커넥터 설정 → Request Headers → x-api-key"를 안내하는데, claude.ai
-      웹 커넥터 UI에는 해당 입력란이 존재하지 않는다(7/28 설정 화면 확인).
-      실제 가능한 경로(Claude Code `--header`, 데스크톱 `mcp-remote` 브리지,
-      로컬 stdio)를 제시하도록 수정 필요
 - [ ] `test_connector.py` import 문 상단 정리 (비블로킹)
 
 ---
