@@ -1,0 +1,154 @@
+==============================================================================
+원격 tasklog 차단 · 인증 안내 정정 — 배포 서버 실측 근거
+==============================================================================
+
+수집일  : 2026-07-29
+대상    : 배포 서버(EdgeXpert)에서 운영 중인 MCP 서버 (streamable-http)
+커밋    : 팀 dev/mcp 7424cd1 / 포트폴리오 main 19b1c26
+
+마스킹  : 아래 값은 공개를 위해 치환하였습니다. 그 외 출력은 원문 그대로입니다.
+            실제 도메인      -> [SERVER_URL]
+            작업자 접속 IP   -> [MY_IP]
+            사내망 IP        -> [INTERNAL_IP]
+          저장소 경로(2026-uxis-mirae/llm팀)는 공개 문서에 이미 기재된 값이라
+          치환하지 않았습니다.
+
+
+------------------------------------------------------------------------------
+[1] 원인 — 서비스가 실행되는 디렉터리
+------------------------------------------------------------------------------
+
+수집 명령:
+    systemctl --user cat waple-mcp | grep -i workingdirectory
+
+출력:
+    WorkingDirectory=%h/2026-uxis-mirae/llm팀
+
+확인 내용:
+    tasklog는 `git rev-parse --show-toplevel`로 저장소 루트를 찾는데, 이 명령이
+    기준으로 삼는 것은 프로세스가 실행 중인 디렉터리다. 원격 모드에서 그 위치는
+    사용자의 작업 폴더가 아니라 배포 서버가 체크아웃해 둔 저장소이므로,
+    차단하지 않으면 배포 서버의 커밋 이력이 원격 사용자의 업무일지에 실린다.
+
+
+------------------------------------------------------------------------------
+[2] 조치 확인 — 원격 tasklog 호출이 차단되는가
+------------------------------------------------------------------------------
+
+수집 명령 (x-api-key 헤더 없이 호출. stateless_http 구성이라 세션 없이 동작):
+    curl -s -X POST https://[SERVER_URL]/llm/mcp \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json, text/event-stream" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+           "params":{"name":"tasklog","arguments":{"memo":"차단 검증"}}}'
+
+응답 원문:
+    event: message
+    data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"⚠️ 원격 연결에서는 tasklog를 사용할 수 없습니다.\n\n이 도구는 Git 저장소를 직접 읽는데, 원격 서버가 읽을 수 있는 것은 사용자의 컴퓨터가 아니라 서버 자신의 저장소입니다. 그대로 진행하면 본인이 하지 않은 작업이 업무일지에 기록됩니다.\n\n대신 chat_tasklog를 사용해 주세요. 이 대화에서 실제로 확인된 작업만 근거로 초안을 만듭니다.\nGit 커밋 기반 초안이 필요하면 로컬 Claude Code에서 tasklog를 실행하세요."}],"structuredContent":{"result":"⚠️ 원격 연결에서는 tasklog를 사용할 수 없습니다.\n\n이 도구는 Git 저장소를 직접 읽는데, 원격 서버가 읽을 수 있는 것은 사용자의 컴퓨터가 아니라 서버 자신의 저장소입니다. 그대로 진행하면 본인이 하지 않은 작업이 업무일지에 기록됩니다.\n\n대신 chat_tasklog를 사용해 주세요. 이 대화에서 실제로 확인된 작업만 근거로 초안을 만듭니다.\nGit 커밋 기반 초안이 필요하면 로컬 Claude Code에서 tasklog를 실행하세요."},"isError":false}}
+
+응답 본문(result.content[0].text)을 줄바꿈 그대로 편 것:
+
+    | ⚠️ 원격 연결에서는 tasklog를 사용할 수 없습니다.
+    | 
+    | 이 도구는 Git 저장소를 직접 읽는데, 원격 서버가 읽을 수 있는 것은 사용자의 컴퓨터가 아니라 서버 자신의 저장소입니다. 그대로 진행하면 본인이 하지 않은 작업이 업무일지에 기록됩니다.
+    | 
+    | 대신 chat_tasklog를 사용해 주세요. 이 대화에서 실제로 확인된 작업만 근거로 초안을 만듭니다.
+    | Git 커밋 기반 초안이 필요하면 로컬 Claude Code에서 tasklog를 실행하세요.
+
+확인 내용:
+    초안이 생성되지 않고 안내만 반환된다. 수집 함수 호출 이전에 조기 반환하므로
+    초안 캐시도 변경되지 않으며, submit_worklog가 잘못된 초안을 집어갈 경로가 없다.
+
+
+------------------------------------------------------------------------------
+[3] 조치 확인 — 인증 실패 안내가 실재하는 경로만 지시하는가
+------------------------------------------------------------------------------
+
+배경:
+    종전 안내는 "커넥터 설정 -> Request Headers -> x-api-key"를 지시했으나,
+    claude.ai 웹 커넥터 UI에는 해당 입력란이 존재하지 않는다(2026-07-28 확인.
+    고급 설정에도 OAuth 클라이언트 ID·시크릿만 제공). 인증에 실패한 사용자를
+    존재하지 않는 화면으로 보내는 안내였다.
+
+수집 명령 (x-api-key 헤더 없이 호출):
+    curl -s -X POST https://[SERVER_URL]/llm/mcp \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json, text/event-stream" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+           "params":{"name":"submit_worklog","arguments":{"memo":"인증 안내 확인"}}}'
+
+응답 원문:
+    event: message
+    data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정"}],"structuredContent":{"result":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정"},"isError":false}}
+
+응답 본문(result.content[0].text)을 줄바꿈 그대로 편 것:
+
+    | ⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.
+    | 
+    | 이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.
+    | 헤더를 지정할 수 있는 경로는 다음과 같습니다.
+    | 
+    | 1) Claude Code
+    |    claude mcp add --transport http waple-remote <서버 URL> --header "x-api-key: 발급받은키"
+    | 
+    | 2) Claude 데스크톱 앱 (mcp-remote 브리지)
+    |    claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고
+    |    --header "x-api-key:${WAPLE_API_KEY}" 를 전달합니다 (콜론 뒤 공백 금지).
+    | 
+    | 3) 로컬 실행 (stdio)
+    |    server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.
+    | 
+    | claude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는
+    | 인증할 수 없습니다 (2026-07-28 확인).
+    | 
+    | API 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정
+
+확인 내용:
+    실제로 헤더를 지정할 수 있는 3경로와 웹 커넥터로는 불가능하다는 사실을
+    함께 안내한다. 키가 없으면 Waple API 호출 이전에 반환되므로 등록은 일어나지 않는다.
+
+
+------------------------------------------------------------------------------
+[4] 도달 확인 — 위 호출이 실제로 서버에 도달했는가
+------------------------------------------------------------------------------
+
+수집 명령:
+    tail -30 ~/mcp.log
+
+출력:
+    INFO:     Waiting for application startup.
+    [07/29/26 17:44:41] INFO     StreamableHTTP       streamable_http_manager.py:131
+                                 session manager                                    
+                                 started                                            
+    INFO:     Application startup complete.
+    INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
+    INFO:     [MY_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+    INFO:     [MY_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+    INFO:     [INTERNAL_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+    [07/29/26 17:44:45] INFO     Terminating session: None    streamable_http.py:788
+    INFO:     [INTERNAL_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+    [07/29/26 17:44:52] INFO     Processing request of type            server.py:733
+                                 CallToolRequest                                    
+                        INFO     Terminating session: None    streamable_http.py:788
+    INFO:     [INTERNAL_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+    [07/29/26 17:55:41] INFO     Processing request of type            server.py:733
+                                 CallToolRequest                                    
+                        INFO     Terminating session: None    streamable_http.py:788
+    INFO:     [INTERNAL_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+    [07/29/26 17:56:29] INFO     Processing request of type            server.py:733
+                                 CallToolRequest                                    
+                        INFO     Terminating session: None    streamable_http.py:788
+    INFO:     [INTERNAL_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+    [07/29/26 17:58:02] INFO     Processing request of type            server.py:733
+                                 CallToolRequest                                    
+                        INFO     Terminating session: None    streamable_http.py:788
+    INFO:     [INTERNAL_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                        INFO     Processing request of type            server.py:733
+                                 CallToolRequest                                    
+                        INFO     Terminating session: None    streamable_http.py:788
+
+확인 내용:
+    [2]·[3]의 호출 시각에 CallToolRequest가 기록되어, 응답이 클라이언트 측
+    캐시나 프록시가 아니라 서버 처리 결과임을 확인할 수 있다.
+    GET /mcp의 406은 정상이다. MCP 엔드포인트는 Accept: text/event-stream을
+    요구하므로, 헤더 없는 단순 GET은 406으로 응답한다(생존 확인에 사용).
