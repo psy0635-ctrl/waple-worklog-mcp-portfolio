@@ -586,6 +586,60 @@ def _collect_today_token_usage() -> dict | None:
     }
 
 
+# ── 여러 줄 입력 정규화 [7/30 fix: tomorrow_plan·memo 줄바꿈 버그] ──
+# 불릿으로 인정할 기호. 사용자가 직접 입력할 때 습관적으로 붙이는 것들.
+_BULLET_CHARS = "-\u2013\u2014\u2022*\u00b7"
+
+
+def _format_bullet_lines(text: str, label: str = "", prefix: str = "") -> list[str]:
+    """여러 줄 문자열을 줄 단위로 분해해 각 줄을 하나의 불릿 항목으로 만든다.
+
+    배경:
+      기존 코드는 f"- {text} [라벨]" 한 줄로 조립했다. text에 개행이 들어오면
+      "- "와 라벨이 첫 줄/마지막 줄에만 붙고 중간 줄은 맨몸으로 남는다.
+      tomorrow_plan은 서식만 깨지지만 memo/activities는 근거 라벨이 일부 줄에서
+      사라져 '자기 보고'가 '확인된 사실'처럼 보이게 된다 [지침 6번 위반].
+
+    처리 규칙:
+      - 줄 단위로 분해하고 각 줄 앞뒤 공백 제거
+      - 빈 줄은 버림 (전송 본문 중간에 빈 줄이 생기면 구분선 구조가 깨짐)
+      - 사용자가 이미 붙인 선행 불릿 기호는 제거 (중복 "- - 내용" 방지)
+        단, 기호 뒤에 공백이 있을 때만 불릿으로 인정한다.
+        "-와 관련된 작업"처럼 기호가 단어의 일부인 경우를 보호하기 위함.
+      - 기호만 있고 내용이 없는 줄은 버림
+      - 라벨은 '줄마다' 붙인다. 각 줄이 독립된 업무 항목이 되므로
+        근거 신뢰 수준도 줄마다 표시돼야 한다.
+
+    text: 정규화할 원본 문자열 (None/빈값 허용)
+    label: 각 줄 끝에 붙일 근거 라벨. 예) "[사용자 메모]". 비우면 라벨 없음
+    prefix: 각 줄 내용 앞에 붙일 고정 문구. 예) "생성/수정 파일: "
+
+    반환: ["- 내용 [라벨]", ...] 형태의 리스트. 내용이 하나도 없으면 빈 리스트.
+          호출부가 빈 리스트를 보고 "(미기재)" 등 대체 문구를 결정한다.
+    """
+    if not text:
+        return []
+
+    result = []
+    for raw_line in str(text).splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        # 선행 불릿 기호 제거. "- - 내용"처럼 겹쳐 있어도 정리되도록 반복한다.
+        while len(line) >= 2 and line[0] in _BULLET_CHARS and line[1].isspace():
+            line = line[1:].lstrip()
+
+        # 기호만 남은 줄("-", "•" 등)은 내용이 없으므로 버린다.
+        if not line or all(ch in _BULLET_CHARS for ch in line):
+            continue
+
+        suffix = f" {label}" if label else ""
+        result.append(f"- {prefix}{line}{suffix}")
+
+    return result
+
+
 def _build_draft(today: str, commits: list[dict], status: dict, diff_stat: list[dict], memo: str, tomorrow_plan: str = "", token_usage: dict | None = None) -> tuple[str, str]:
     """
     [보완 ②+④ 반영] 멘토 확정 양식(7/1)으로 초안을 생성한다.
@@ -626,9 +680,10 @@ def _build_draft(today: str, commits: list[dict], status: dict, diff_stat: list[
         has_today_content = True
         for c in commits:
             body_lines.append(f"- {c['subject']} [커밋 {c['hash']}]")
-    if memo:
+    memo_lines = _format_bullet_lines(memo, label="[사용자 메모]")
+    if memo_lines:
         has_today_content = True
-        body_lines.append(f"- {memo} [사용자 메모]")
+        body_lines.extend(memo_lines)
     if not has_today_content:
         body_lines.append("오늘 확인된 커밋·메모가 없습니다.")
 
@@ -669,7 +724,8 @@ def _build_draft(today: str, commits: list[dict], status: dict, diff_stat: list[
     body_lines.append(DIVIDER)
     body_lines.append("내일(향후) 계획")
     body_lines.append(DIVIDER)
-    body_lines.append(f"- {tomorrow_plan}" if tomorrow_plan else "(미기재)")
+    plan_lines = _format_bullet_lines(tomorrow_plan)
+    body_lines.extend(plan_lines if plan_lines else ["(미기재)"])
 
     submission_memo = "\n".join(body_lines)
 
@@ -776,13 +832,14 @@ def _build_chat_draft(
 
     has_today_content = False
     for a in activities:
-        a = a.strip()
-        if a:
+        activity_lines = _format_bullet_lines(a, label="[대화 기반]")
+        if activity_lines:
             has_today_content = True
-            body_lines.append(f"- {a} [대화 기반]")
-    if memo:
+            body_lines.extend(activity_lines)
+    memo_lines = _format_bullet_lines(memo, label="[사용자 메모]")
+    if memo_lines:
         has_today_content = True
-        body_lines.append(f"- {memo} [사용자 메모]")
+        body_lines.extend(memo_lines)
     if not has_today_content:
         body_lines.append("오늘 확인된 활동·메모가 없습니다.")
 
@@ -800,10 +857,10 @@ def _build_chat_draft(
 
     has_detail_content = False
     for f in created_files:
-        f = f.strip()
-        if f:
+        file_lines = _format_bullet_lines(f, label="[생성 파일]", prefix="생성/수정 파일: ")
+        if file_lines:
             has_detail_content = True
-            body_lines.append(f"- 생성/수정 파일: {f} [생성 파일]")
+            body_lines.extend(file_lines)
     if not has_detail_content:
         body_lines.append("특이사항 없음.")
 
@@ -811,7 +868,8 @@ def _build_chat_draft(
     body_lines.append(DIVIDER)
     body_lines.append("내일(향후) 계획")
     body_lines.append(DIVIDER)
-    body_lines.append(f"- {tomorrow_plan}" if tomorrow_plan else "(미기재)")
+    plan_lines = _format_bullet_lines(tomorrow_plan)
+    body_lines.extend(plan_lines if plan_lines else ["(미기재)"])
 
     submission_memo = "\n".join(body_lines)
 
@@ -838,7 +896,7 @@ def _build_chat_draft(
         for item in needs_confirmation:
             item = item.strip()
             if item:
-                display_lines.append(f"- {item}")
+                display_lines.extend(_format_bullet_lines(item))
         display_lines.append("")
     display_lines.append("| 항목 | 내용 |")
     display_lines.append("|------|------|")
