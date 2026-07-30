@@ -17,6 +17,7 @@
 필요 환경: scripts/README.md 참고. 폰트가 없으면 한글이 통째로 빠진 채
           정상 종료되므로, 아래 검증 단계를 건너뛰지 말 것.
 """
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -34,8 +35,23 @@ CSS_PATH = Path(__file__).resolve().parent / "pdf_style.css"
 # 폰트 누락이나 렌더링 실패를 조용히 넘기지 않기 위한 최소 검증 기준이다.
 REQUIRED_STRINGS = ["프로젝트 개요", "자동화 테스트"]
 
-# 공개 레포용 문서이므로 아래 값이 섞여 들어가면 즉시 중단한다.
-FORBIDDEN_PATTERNS = ["61.32.164.99", "211.41.122.62", "60022"]
+# 공개 레포용 문서이므로 배포 서버 정보가 섞이면 중단한다.
+#
+# 주의: 금지할 값(서버 IP·포트 등)을 여기에 그대로 적으면
+#       "노출을 막는 코드"가 그 값을 공개하는 모순이 생긴다.
+#       그래서 구체적인 값 대신 형태(패턴)로 검사한다.
+#       부수 효과로, 미리 예상하지 못한 주소까지 함께 걸린다.
+
+# 문서에 정상적으로 등장하는 주소 (transport_security 설명 등)
+ALLOWED_HOSTS = {"127.0.0.1", "0.0.0.0", "255.255.255.255", "::1"}
+
+# 흔히 쓰는 개발 포트는 문서에 나와도 문제가 없다
+ALLOWED_PORTS = {"80", "443", "3000", "5000", "8000", "8010", "8080"}
+
+IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")     # 1.2.3.4 형태
+USER_AT_HOST_RE = re.compile(r"\b[\w.-]+@[\w.-]+\.?[\w-]*\b")  # user@host 형태
+PORT_RE = re.compile(r":(\d{2,5})\b")                    # :포트번호 형태
+SSH_CMD_RE = re.compile(r"\bssh\b[^\n]*-p\s*\d+")        # ssh -p 접속 명령
 
 
 def build() -> None:
@@ -80,9 +96,16 @@ def verify() -> None:
         sys.exit(f"[중단] 본문에서 확인되지 않은 문자열: {missing}\n"
                  "       한글 폰트가 적용되지 않았을 가능성이 큽니다.")
 
-    leaked = [p for p in FORBIDDEN_PATTERNS if p in text]
+    leaked = []
+    leaked += [ip for ip in IPV4_RE.findall(text) if ip not in ALLOWED_HOSTS]
+    leaked += [m for m in USER_AT_HOST_RE.findall(text) if "@" in m]
+    leaked += [f":{port}" for port in PORT_RE.findall(text)
+               if port not in ALLOWED_PORTS]
+    leaked += SSH_CMD_RE.findall(text)
     if leaked:
-        sys.exit(f"[중단] 공개하면 안 되는 값이 포함되어 있습니다: {leaked}")
+        sys.exit("[중단] 공개하면 안 되는 정보로 보이는 값이 있습니다: "
+                 f"{sorted(set(leaked))}\n"
+                 "       오탐이면 ALLOWED_HOSTS / ALLOWED_PORTS 에 추가하세요.")
 
     pages = text.count("\f")
     print(f"[검증] 한글 정상 · 노출 없음 · 약 {pages}페이지")
