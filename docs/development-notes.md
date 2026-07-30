@@ -501,6 +501,7 @@ Git에 접근할 수 없는 일반 채팅 환경 전용 초안 생성 도구입�
 | 6 | Claude Code 로그 폴더 대소문자가 달라 토큰 집계가 누락됨 | 폴더명 매칭이 대소문자 구분 방식이었음 | 소문자 비교 폴백 + 혼재 시 전체 폴더 합산 (PR#12 리뷰 반영, 6케이스 테스트) | 7/15 |
 | 7 | 원격 배포 후 커넥터가 421 Misdirected Request 반환 | FastMCP의 DNS Rebinding 방지로 허용 Host가 `127.0.0.1`로 잠김 | nginx에서 `proxy_set_header Host 127.0.0.1:8010`으로 재작성 (정석 해법인 `transport_security` 명시는 후속 과제) | 7/20 |
 | 8 | 리눅스 curl·원격 커넥터에서만 HTTPS 연결 실패 | 인증서 체인에 중간 CA 누락(브라우저는 AIA로 자동 보완돼 정상처럼 보임) | 앞단 HTTPS 종료 지점에서 fullchain 적용 | 7/21 |
+| 9 | `tomorrow_plan`·`memo`·`activities`·`created_files`에 개행이 포함되면 "- "와 근거 라벨이 일부 줄에서 누락됨 | 같은 조립 로직(`f"- {값} [라벨]"`)이 두 함수에 복붙되어 있었음 | `_format_bullet_lines` 헬퍼로 통합, 줄 단위 분해 + 라벨을 줄마다 부여 | 7/30 |
 
 ---
 
@@ -678,6 +679,18 @@ python -m pytest llm팀/test_connector.py -v
   화면 공유·시연·이슈 첨부 시 이 로그를 그대로 캡처하지 않습니다.
 - 브리지를 터미널에서 직접 실행해 본 경우, 실행 후 스크롤백을 지웁니다.
 
+### 기록 무결성 — 근거 파일 생성 시 셸 혼용 사고 (7/30)
+
+`docs/evidence/multiline_input_evidence.txt`를 처음 만들 때 Git Bash 전용
+구문 `{ ... } > 파일`을 PowerShell에서 실행하였습니다. PowerShell에서
+`{ }`는 스크립트 블록 객체라 실행되지 않고 블록 내용이 글자 그대로
+저장되었고, PowerShell의 `>`는 기본 인코딩이 UTF-16LE라 인코딩까지
+섞였습니다. 파일은 정상 생성되고 이름·크기도 있어 눈으로는 문제가 없어
+보였습니다 — 7/29 원격 tasklog 건(서버 자신의 커밋이 초안에 채워지던
+문제)과 같은 유형입니다. 비어 있으면 알아채지만, 그럴듯하게 채워져 있으면
+넘어갑니다. 재발 방지: 셸을 혼용하지 않고, 근거 파일은 생성 직후 반드시
+내용을 열어서 확인합니다.
+
 ---
 
 ## 14. 지침 대비 설계 편차 및 근거
@@ -752,6 +765,13 @@ python -m pytest llm팀/test_connector.py -v
       것이 애초 원인이라 `_HEADER_AUTH_GUIDE` 상수로 분리하고, 두 도구가 같은
       상수를 참조하는지까지 테스트로 고정했다. 배포 서버 실측으로 응답 확인,
       `test_connector.py` 3케이스 추가 (`9585cbd`·`7424cd1`, 7/29)
+- [x] 여러 줄 입력 서식 버그 수정 — `tomorrow_plan`·`memo`·`activities`·
+      `created_files`에 개행이 포함되면 "- "와 근거 라벨이 일부 줄에서
+      누락되어, 라벨 없는 줄이 Git에서 확인된 사실처럼 보이는 문제를
+      확인했다(지침 6번 위반). `_format_bullet_lines` 헬퍼로 조립 로직을
+      통합해 줄 단위로 라벨을 부여하도록 수정. 수정 전(`ad8ce45`)·후
+      (`47e38ba`) 실행 결과를 대조한 근거를 남겼다. 테스트 13케이스 추가,
+      28 → 41 passed (`47e38ba`·`c96de9a`·`5bd4f08`, 7/30)
 
 ## 16. 앞으로 해야 할 작업
 
@@ -762,7 +782,6 @@ python -m pytest llm팀/test_connector.py -v
 - [ ] 지침 17번 12항목 중 미검증 5개 항목 테스트 진행
       (🟡 2·4·5 실물 미실행, 🔴 6·7 프롬프트 강제)
 - [ ] Claude Code 로그 경로 의존성 모니터링 — 토큰 집계가 `~/.claude/projects/` 폴더 네이밍 규칙(비공식, 7/10 실측)에 의존하므로 Claude Code 업데이트 시 조용히 "수집 불가"로 폴백될 수 있음. 버전 업데이트 후 토큰 표시가 사라지면 이 규칙 변경을 먼저 의심할 것 (PR#10 리뷰 백로그)
-- [ ] `test_connector.py` import 문 상단 정리 (비블로킹)
 
 ---
 
@@ -779,6 +798,7 @@ llm팀/
 ├── test_guideline17.py   # 지침 17번 항목(9·11·12) 테스트
 ├── test_connector.py     # chat_tasklog·per-user 스코핑 테스트 (7/11, 7/17)
 ├── test_token_usage.py   # 토큰 집계 테스트 (7/10)
+├── test_multiline_input.py  # 여러 줄 입력 불릿·라벨 정규화 테스트 (7/30)
 ├── docs/
 │   ├── connector-design.md    # 커넥터 근거 수집 설계
 │   └── integration-manual.md  # 연동 매뉴얼 (배포·설치·문제해결)

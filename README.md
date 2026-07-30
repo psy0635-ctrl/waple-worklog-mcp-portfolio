@@ -154,7 +154,7 @@ python -m pytest -q
 ```
 
 ```
-25 passed, 1 skipped
+41 passed, 1 skipped
 ```
 
 `skipped` 1건은 로그 폴더 대소문자 혼재 케이스입니다.
@@ -169,6 +169,7 @@ Windows 파일시스템에서는 대소문자만 다른 폴더를 동시에 만�
 | `test_login_retry.py` | 인증 실패 시 재시도 안내 |
 | `test_token_usage.py` | 세션 로그 기반 토큰 집계 |
 | `test_draft_cleanup.py` | 초안 캐시 누적 방지 (등록 후 삭제, TTL 정리) |
+| `test_multiline_input.py` | 여러 줄 입력 시 불릿·근거 라벨 정규화 (`_format_bullet_lines`) |
 
 ---
 
@@ -325,6 +326,38 @@ WorkingDirectory=%h/2026-uxis-mirae/llm팀
 테스트로 고정하였습니다. 문구 자체보다 이 중복이 재발 지점이었습니다.
 
 배포 서버에 키 없이 등록 도구를 호출해 새 안내가 반환되는 것까지 확인하였습니다.
+
+### 프로젝트 종료 후 개선 (2026-07-30)
+
+`tomorrow_plan`·`memo`·`activities`·`created_files`에 개행이 포함된 값을
+넣으면, "- "와 근거 라벨이 조립된 문자열의 첫 줄 또는 마지막 줄에만 붙고
+중간 줄은 아무 표시 없이 남는 문제를 확인하였습니다. `tomorrow_plan`은
+글머리 기호만 깨지지만, `memo`·`activities`는 라벨이 사라진 줄이 **Git에서
+확인된 사실처럼 보이게** 되어, 확인되지 않은 내용을 사실처럼 쓰지 않는다는
+이 프로젝트의 원칙을 정면으로 어기는 경로였습니다.
+
+원인은 같은 조립 로직(`f"- {값} [라벨]"`)이 두 함수에 복사되어 있었던
+것입니다. `_format_bullet_lines` 헬퍼로 로직을 통합해, 값을 줄 단위로
+분해한 뒤 각 줄마다 독립적으로 "- "와 근거 라벨을 붙이도록 수정하였습니다.
+
+수정 전(`ad8ce45`)과 수정 후(`47e38ba`) 상태에서 같은 재현 스크립트를
+실행한 결과를 한 파일에서 대조할 수 있도록 근거로 남겼습니다
+([docs/evidence/multiline_input_evidence.txt](docs/evidence/multiline_input_evidence.txt)).
+이 근거 파일을 처음 만드는 과정에서 셸을 혼용해 캡처에 실패한 사고가
+있었는데, 그 경위는 [docs/development-notes.md](docs/development-notes.md)
+13절 "기록 무결성"에 정리하였습니다.
+
+| 확인 항목 | 결과 |
+| --- | --- |
+| 원인 | 조립 로직 복붙 (코드 확인) |
+| 재현 | 수정 전(`ad8ce45`) 상태에서 실측 재현 |
+| 수정 | `_format_bullet_lines` 헬퍼 통합 |
+| 테스트 | 13케이스 추가, 28 → 41 passed |
+
+(부수 정정) 이 정리 과정에서 위 7절의 테스트 총계가 실제로는 이미 7/29에
+28이었어야 하는데 25로 방치되어 있던 것을 확인하여, 41로 갱신하며 함께
+정정하였습니다(`test_connector.py` import 정리 항목도 이미 완료 상태로
+남아 있던 것을 development-notes.md에서 함께 정리하였습니다).
 
 ---
 
