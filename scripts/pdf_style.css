@@ -1,0 +1,105 @@
+/* 상세설명 문서 PDF 서식 정의
+   scripts/build_pdf.py 에서 WeasyPrint에 전달된다.
+   서식만 바꾸고 싶을 때는 이 파일만 수정하면 되고, diff에 변경점이 그대로 드러난다. */
+
+@page {
+    size: A4;
+    margin: 20mm;
+    /* 하단 가운데 페이지 번호 */
+    @bottom-center {
+        content: counter(page);
+        font-family: "Noto Sans CJK KR", sans-serif;
+        font-size: 8pt;
+        color: #999;
+    }
+}
+
+body {
+    /* 한글 본문 폰트. 시스템에 설치돼 있어야 한다(scripts/README.md 참고) */
+    font-family: "Noto Sans CJK KR", "Noto Sans", sans-serif;
+    font-size: 10pt;
+    line-height: 1.62;
+    color: #1a1a1a;
+}
+
+/* ── 제목 ── */
+h1 {
+    font-size: 18pt;
+    margin: 0 0 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #333;
+}
+h2 {
+    font-size: 13pt;
+    margin: 27px 0 13px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #ddd;
+}
+h3 {
+    font-size: 11pt;
+    margin: 22px 0 10px;
+}
+/* 제목만 페이지 끝에 홀로 남는 것을 막는다 */
+h1, h2, h3 { break-after: avoid; }
+
+/* ── 인용 블록 (문서 머리말) ── */
+blockquote {
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: #f6f6f6;
+    border-left: 3px solid #bbb;
+}
+blockquote p { margin: 0; }
+
+/* ── 표 ── */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 14px 0;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 6px 9px;
+    text-align: left;
+    vertical-align: top;
+}
+th { background: #f2f2f2; font-weight: bold; }
+/* 표가 페이지를 넘어갈 때 머리행을 반복하고, 한 행이 잘리지 않게 한다 */
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+
+/* ── 코드 ──
+   "Noto Sans Mono CJK KR"을 DejaVu 뒤에 둔다.
+   이 줄이 없으면 코드블록 안의 한글이 중국어 폰트(WenQuanYi)로 대체된다. */
+code {
+    font-family: "DejaVu Sans Mono", "Noto Sans Mono CJK KR", monospace;
+    font-size: 8.5pt;
+    background: #f4f4f4;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+pre {
+    background: #f7f7f7;
+    border: 1px solid #e5e5e5;
+    padding: 12px 14px;
+    font-size: 8.5pt;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 14px 0;
+}
+pre code { background: none; padding: 0; }
+
+/* ── 목록 ── */
+ul, ol { margin: 10px 0; padding-left: 22px; }
+li { margin: 4px 0; }
+
+/* ── 구분선 ── */
+hr {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 26px 0;
+}
+
+strong { font-weight: bold; }
