@@ -1,0 +1,243 @@
+[웹 커넥터 도구 호출 근거 — 2026-07-28]
+
+■ 이 파일이 무엇인가
+  배포 서버 ~/mcp.log 의 2026-07-28 구간(원본 302~511행, 210줄) 발췌.
+  claude.ai 웹 커넥터에서 보낸 요청이 서버에 도달했는지 확인하기 위한 것.
+
+■ 수집 명령 (제3자 재현용)
+  ssh -p [SSH_PORT] mirae@[SERVER_IP]
+  grep -n "07/28" ~/mcp.log | head -3      # 시작 302행 (15:20:12)
+  grep -n "07/28" ~/mcp.log | tail -3      # 종료 511행 (23:36:20)
+  sed -n '302,511p' ~/mcp.log \
+    | sed -E 's/160\.79\.106\.([0-9]{1,3})/@@KEEP\1@@/g;
+              s/([0-9]{1,3}\.){3}[0-9]{1,3}/[MASKED_IP]/g;
+              s/@@KEEP([0-9]{1,3})@@/160.79.106.\1/g;
+              s/edgexpert-[a-z0-9]*/[HOST]/g' > evidence_0728.txt
+
+■ 마스킹
+  실제 IP  -> [MASKED_IP]
+  호스트명 -> [HOST]
+  160.79.106.x (Anthropic 발신) 는 근거이므로 유지
+
+■ 핵심 지점 (원본 mcp.log 줄 번호 기준 / 이 파일에서는 아래 명령으로 탐색)
+  grep -n "16:52:41" 로 탐색  = mcp.log 464행  CallToolRequest, 발신 [MASKED_IP]
+  grep -n "17:02:12" 로 탐색  = mcp.log 473행  CallToolRequest, 발신 160.79.106.36
+  -> 08번 캡처(awk 출력)의 464 / 473 과 동일. 캡처와 로그가 같은 데이터임이 대조됨.
+
+■ 귀속의 근거와 한계
+  uvicorn 접근 로그와 MCP 서버 로그는 요청 ID로 연결되지 않는다.
+  따라서 IP-호출 귀속은 인접 줄 기준이며, 그 자체로는 단정 근거가 되지 못한다.
+  다만 16:55~17:02 구간의 발신은 160.79.106.x 뿐이므로,
+  인접 귀속이 한 줄 어긋나더라도 "웹 커넥터 발신이 도구 호출에 도달했다"는 결론은 유지된다.
+
+================= 이하 로그 발췌 (원본 302~511행) =================
+[07/28/26 15:20:12] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 202 Accepted
+[07/28/26 15:20:13] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 15:20:15] INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 15:20:16] INFO     Processing request of type            server.py:733
+                             ListPromptsRequest                                 
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListResourcesRequest                               
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 15:20:18] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListResourcesRequest                               
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListPromptsRequest                                 
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 15:20:48] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 15:31:27] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Processing request of type            server.py:733
+                             ListPromptsRequest                                 
+                    INFO     Processing request of type            server.py:733
+                             ListResourcesRequest                               
+                    INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 15:31:33] INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 15:31:48] INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 15:31:57] INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 16:17:32] WARNING  Invalid Host header:       transport_security.py:64
+                             evil.example.com                                   
+INFO:     [MASKED_IP]:53024 - "GET /mcp HTTP/1.1" 421 Misdirected Request
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 16:24:17] WARNING  Invalid Host header:       transport_security.py:64
+                             evil.example.com                                   
+INFO:     [MASKED_IP]:41058 - "GET /mcp HTTP/1.1" 421 Misdirected Request
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:58136 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+[07/28/26 16:24:25] INFO     Terminating session: None    streamable_http.py:788
+INFO:     Shutting down
+INFO:     Waiting for connections to close. (CTRL+C to force quit)
+[07/28/26 16:25:42] INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+                    INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+INFO:     Waiting for application shutdown.
+                    INFO     StreamableHTTP       streamable_http_manager.py:135
+                             session manager                                    
+                             shutting down                                      
+INFO:     Application shutdown complete.
+INFO:     Finished server process [574876]
+INFO:     Started server process [1916707]
+INFO:     Waiting for application startup.
+[07/28/26 16:25:42] INFO     StreamableHTTP       streamable_http_manager.py:131
+                             session manager                                    
+                             started                                            
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://[MASKED_IP]:8010 (Press CTRL+C to quit)
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+[07/28/26 16:25:50] INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 16:27:18] WARNING  Invalid Host header:       transport_security.py:64
+                             mirae.uxis.co.kr                                   
+INFO:     [MASKED_IP]:47138 - "GET /mcp HTTP/1.1" 421 Misdirected Request
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:33498 - "GET /mc HTTP/1.1" 404 Not Found
+[07/28/26 16:31:25] WARNING  Invalid Origin header:     transport_security.py:86
+                             https://claude.ai                                  
+INFO:     [MASKED_IP]:55382 - "GET /mcp HTTP/1.1" 403 Forbidden
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     Shutting down
+[07/28/26 16:46:13] INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+                    INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+INFO:     Waiting for application shutdown.
+                    INFO     StreamableHTTP       streamable_http_manager.py:135
+                             session manager                                    
+                             shutting down                                      
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1916707]
+INFO:     Started server process [1943607]
+INFO:     Waiting for application startup.
+[07/28/26 16:46:13] INFO     StreamableHTTP       streamable_http_manager.py:131
+                             session manager                                    
+                             started                                            
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://[MASKED_IP]:8010 (Press CTRL+C to quit)
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:39180 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+[07/28/26 16:46:27] INFO     Terminating session: None    streamable_http.py:788
+                    WARNING  Invalid Host header:       transport_security.py:64
+                             evil.example.com                                   
+INFO:     [MASKED_IP]:39194 - "GET /mcp HTTP/1.1" 421 Misdirected Request
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:39208 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:39222 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 16:50:29] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 16:50:40] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 16:52:11] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListResourcesRequest                               
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListPromptsRequest                                 
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 16:52:41] INFO     Processing request of type            server.py:733
+                             CallToolRequest                                    
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 16:55:11] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 17:02:10] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.34:0 - "POST /mcp HTTP/1.1" 202 Accepted
+[07/28/26 17:02:11] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.36:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 17:02:12] INFO     Processing request of type            server.py:733
+                             CallToolRequest                                    
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 18:08:14] INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 21:31:35] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 202 Accepted
+[07/28/26 21:31:37] INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 21:31:40] INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 21:31:41] INFO     Processing request of type            server.py:733
+                             ListResourcesRequest                               
+INFO:     160.79.106.35:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListPromptsRequest                                 
+                    INFO     Terminating session: None    streamable_http.py:788
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+[07/28/26 21:50:19] INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
+                    INFO     Processing request of type            server.py:733
+                             ListToolsRequest                                   
+                    INFO     Terminating session: None    streamable_http.py:788
+INFO:     [MASKED_IP]:0 - "POST /mcp HTTP/1.1" 202 Accepted
+                    INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 21:50:49] INFO     Terminating session: None    streamable_http.py:788
+[07/28/26 23:36:20] INFO     Terminating session: None    streamable_http.py:788

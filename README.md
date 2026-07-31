@@ -222,7 +222,14 @@ OAuth 클라이언트 ID·시크릿 두 가지뿐이며, 임의의 요청 헤더
 > Origin 차단은 실제로 발생하지 않았습니다. 현재 허용 목록에 해당 Origin 이
 > 포함되어 있으나 이는 버그 수정이 아니라 예방적 조치입니다.
 
-마스킹한 로그 발췌는 [docs/evidence/webconnector_evidence_masked.txt](docs/evidence/webconnector_evidence_masked.txt) 에 있습니다.
+마스킹한 로그 발췌는 두 파일로 나누어 두었습니다.
+
+- [docs/evidence/webconnector_evidence_masked.txt](docs/evidence/webconnector_evidence_masked.txt) — 2026.07.21~07.25 구간, 웹 커넥터 발신 요청 0건 확인
+- [docs/evidence/webconnector_0728_evidence_masked.txt](docs/evidence/webconnector_0728_evidence_masked.txt) — 2026.07.28 구간, 도구 호출 도달 및 응답 코드 기록
+
+후자의 139행에 403 이 한 건 있으나 이는 Origin 차단 동작을 확인하기 위해 직접 실행한
+curl 요청이며, 웹 커넥터 발신 요청(160.79.106.x)의 응답은 200·202 뿐입니다.
+차단 기능은 정상 동작하되 웹 커넥터 실패의 원인은 아니었음을 같은 파일에서 확인할 수 있습니다.
 
 ---
 
