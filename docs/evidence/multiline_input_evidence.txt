@@ -4,7 +4,8 @@ tomorrow_plan · memo 여러 줄 입력 서식 버그 — 수정 전/후 실측 
 
 작성일  : 2026-07-30
 관련 커밋: 수정 전(버그 상태) ad8ce45 / fix 47e38ba / test c96de9a
-마스킹  : 실제 도메인 -> [SERVER_URL] 로 치환하였습니다.
+마스킹  : 실제 도메인   -> [SERVER_URL]
+          작업자 접속 IP -> [MY_IP]
           그 외 출력은 원문 그대로입니다.
 
 ## 개요
@@ -356,23 +357,23 @@ data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"[Claud
 
 ### 4. 서버 로그
 # 명령: tail -20 ~/mcp.log   (외부 접속 IP는 마스킹함)
-INFO:     192.168.1.1:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+INFO:     [MY_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
 [07/30/26 16:09:20] INFO     Terminating session: None    streamable_http.py:788
-INFO:     192.168.1.1:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MY_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
 [07/30/26 16:09:28] INFO     Processing request of type            server.py:733
                              CallToolRequest                                    
                     INFO     Terminating session: None    streamable_http.py:788
-INFO:     192.168.1.1:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MY_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
 [07/30/26 16:09:36] INFO     Processing request of type            server.py:733
                              CallToolRequest                                    
                     INFO     Terminating session: None    streamable_http.py:788
-INFO:     192.168.1.1:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+INFO:     [MY_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
 [07/30/26 16:11:48] INFO     Terminating session: None    streamable_http.py:788
-INFO:     192.168.1.1:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MY_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
 [07/30/26 16:11:49] INFO     Processing request of type            server.py:733
                              CallToolRequest                                    
                     INFO     Terminating session: None    streamable_http.py:788
-INFO:     192.168.1.1:0 - "POST /mcp HTTP/1.1" 200 OK
+INFO:     [MY_IP]:0 - "POST /mcp HTTP/1.1" 200 OK
                     INFO     Processing request of type            server.py:733
                              CallToolRequest                                    
                     INFO     Terminating session: None    streamable_http.py:788
