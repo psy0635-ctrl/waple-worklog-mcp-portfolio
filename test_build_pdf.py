@@ -10,6 +10,9 @@
       - 걸려야 하는 값이 실제로 걸리는가 (미검출 방지)
       - 통과해야 하는 값이 통과하는가 (오탐 방지)
 
+    오탐 쪽도 같은 무게로 다루는 이유는, 오탐이 쏟아지면 사람이 검사
+    결과를 읽지 않게 되고 그 시점에 검사기는 없는 것과 같아지기 때문이다.
+
 주의: 여기에 실제 배포 서버의 값을 적지 않는다.
       노출을 막는 코드가 값을 공개하는 모순이 생기기 때문이며,
       검사가 '형태' 기준이므로 가짜 값으로도 동일하게 검증된다.
@@ -36,7 +39,8 @@ MUST_DETECT = [
     ("사설 IP",           "내부 192.168.0.10", "192.168.0.10"),
     ("메일 주소",         "문의 someone@sample.net", "someone@sample.net"),
     ("ssh 접속 명령",     "ssh -p 12345 user@host", "ssh -p 12345"),
-    ("비허용 포트",       "서버가 :9999 에서 대기", ":9999"),
+    ("도메인:포트",       "접속 host.sample.kr:9999", "host.sample.kr:9999"),
+    ("IP:포트",           "접속 203.0.113.45:9999", "203.0.113.45:9999"),
 ]
 
 
@@ -48,16 +52,20 @@ def test_걸려야_하는_값이_검출된다(desc, text, expected):
 
 # ── 통과해야 하는 값 ────────────────────────────────────────
 MUST_PASS = [
-    ("허용 호스트",     "bind 127.0.0.1 / 0.0.0.0 / ::1"),
-    ("허용 포트",       "포트 :8010 과 :443 사용"),
-    ("허용 도메인",     "https://github.com/user/repo 참고"),
-    ("문서용 도메인",   "https://example.com 예시"),
-    ("시각 표기",       "2026-07-28 17:02:12 요청 도달"),
-    ("시분 표기",       "16:55 부터 17:02 까지"),
-    ("한글 본문",       "업무일지 초안을 생성하고 사용자 승인을 받는다"),
-    ("플레이스홀더",    "ssh -p [SSH_PORT] user@[SERVER_IP] 로 접속"),
-    ("마스킹된 로그",   "INFO: [MASKED_IP]:0 - GET /mcp 200 OK"),
-    ("코드 블록",       "def build() -> None:  # 주석"),
+    ("허용 호스트",       "bind 127.0.0.1 / 0.0.0.0 / ::1"),
+    ("허용 포트",         "https://example.com:8010 과 :443 사용"),
+    ("허용 도메인",       "https://github.com/user/repo 참고"),
+    ("문서용 도메인",     "https://example.com 예시"),
+    ("근거로 유지할 IP",  "INFO: 160.79.106.36:0 - POST /mcp 200 OK"),
+    ("시각 표기",         "2026-07-28 17:02:12 요청 도달"),
+    ("시분 표기",         "16:55 부터 17:02 까지"),
+    ("로그의 파일:줄번호", "INFO Terminating session streamable_http.py:788"),
+    ("파이썬 슬라이스",   "preview = line[:70] + '...'"),
+    ("포맷 지정자",       'print(f"{name:20} -> {value}")'),
+    ("한글 본문",         "업무일지 초안을 생성하고 사용자 승인을 받는다"),
+    ("플레이스홀더",      "ssh -p [SSH_PORT] user@[SERVER_IP] 로 접속"),
+    ("마스킹된 로그",     "INFO: [MASKED_IP]:53024 - GET /mcp 406"),
+    ("JSON 이스케이프",   r'{"text":"확인할 수 없습니다.\nclaude.ai 웹 커넥터는"}'),
 ]
 
 
@@ -81,7 +89,7 @@ def test_결과는_중복_없이_정렬된다():
 
 def test_여러_종류가_한번에_검출된다():
     """실제 사고는 한 줄에 여러 종류가 섞여 있는 경우가 많다."""
-    text = "ssh -p 12345 user@sample.net 로 203.0.113.45 접속 후 :9999 확인"
+    text = "ssh -p 12345 user@sample.net 로 203.0.113.45 접속 후 확인"
     result = scan_text(text)
     assert len(result) >= 4, f"검출이 부족합니다: {result}"
 
@@ -92,3 +100,14 @@ def test_검사_대상_상수가_비어_있지_않다():
     assert "127.0.0.1" in ALLOWED_HOSTS
     assert "443" in ALLOWED_PORTS
     assert "github.com" in ALLOWED_DOMAINS
+
+
+def test_예시값_파일은_일괄검사에서_제외된다():
+    """검사기 자신과 그 테스트는 걸려야 하는 형태를 본문에 담고 있다.
+
+    제외 목록이 사라지면 --all 이 자기 자신을 계속 신고하게 되고,
+    그러면 사람이 결과를 읽지 않게 된다.
+    """
+    from check_secrets import SELF_EXEMPT
+    assert "test_build_pdf.py" in SELF_EXEMPT
+    assert "scripts/check_secrets.py" in SELF_EXEMPT
