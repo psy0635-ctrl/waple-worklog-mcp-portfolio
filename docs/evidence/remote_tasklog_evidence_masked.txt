@@ -8,6 +8,7 @@
 
 마스킹  : 아래 값은 공개를 위해 치환하였습니다. 그 외 출력은 원문 그대로입니다.
             실제 도메인      -> [SERVER_URL]
+            Waple 도메인     -> [WAPLE_BASE_URL]
             작업자 접속 IP   -> [MY_IP]
             사내망 IP        -> [INTERNAL_IP]
           저장소 경로(2026-uxis-mirae/llm팀)는 공개 문서에 이미 기재된 값이라
@@ -79,7 +80,7 @@
 
 응답 원문:
     event: message
-    data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정"}],"structuredContent":{"result":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정"},"isError":false}}
+    data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple([WAPLE_BASE_URL]) → 환경설정 → API설정"}],"structuredContent":{"result":"⚠️ 요청에 x-api-key 헤더가 없어 인증할 수 없습니다.\n\n이 서버는 매 요청의 x-api-key 헤더로만 키를 받습니다.\n헤더를 지정할 수 있는 경로는 다음과 같습니다.\n\n1) Claude Code\n   claude mcp add --transport http waple-remote <서버 URL> --header \"x-api-key: 발급받은키\"\n\n2) Claude 데스크톱 앱 (mcp-remote 브리지)\n   claude_desktop_config.json에 mcp-remote를 stdio 서버로 등록하고\n   --header \"x-api-key:${WAPLE_API_KEY}\" 를 전달합니다 (콜론 뒤 공백 금지).\n\n3) 로컬 실행 (stdio)\n   server.py를 로컬에서 직접 실행하면 .env에 저장된 키를 사용합니다.\n\nclaude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는\n인증할 수 없습니다 (2026-07-28 확인).\n\nAPI 키 발급: Waple([WAPLE_BASE_URL]) → 환경설정 → API설정"},"isError":false}}
 
 응답 본문(result.content[0].text)을 줄바꿈 그대로 편 것:
 
@@ -101,7 +102,7 @@
     | claude.ai 웹 커넥터는 커스텀 헤더 입력란을 제공하지 않아 이 경로로는
     | 인증할 수 없습니다 (2026-07-28 확인).
     | 
-    | API 키 발급: Waple(dev.waple.kr) → 환경설정 → API설정
+    | API 키 발급: Waple([WAPLE_BASE_URL]) → 환경설정 → API설정
 
 확인 내용:
     실제로 헤더를 지정할 수 있는 3경로와 웹 커넥터로는 불가능하다는 사실을

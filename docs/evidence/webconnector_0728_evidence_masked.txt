@@ -12,11 +12,13 @@
     | sed -E 's/160\.79\.106\.([0-9]{1,3})/@@KEEP\1@@/g;
               s/([0-9]{1,3}\.){3}[0-9]{1,3}/[MASKED_IP]/g;
               s/@@KEEP([0-9]{1,3})@@/160.79.106.\1/g;
+              s/[a-z0-9-]+\.[a-z0-9-]+\.co\.kr/[SERVER_URL]/g;
               s/edgexpert-[a-z0-9]*/[HOST]/g' > evidence_0728.txt
 
 ■ 마스킹
-  실제 IP  -> [MASKED_IP]
-  호스트명 -> [HOST]
+  실제 IP   -> [MASKED_IP]
+  실제 도메인 -> [SERVER_URL]
+  호스트명  -> [HOST]
   160.79.106.x (Anthropic 발신) 는 근거이므로 유지
 
 ■ 핵심 지점 (원본 mcp.log 줄 번호 기준 / 이 파일에서는 아래 명령으로 탐색)
@@ -130,7 +132,7 @@ INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
 INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 406 Not Acceptable
 [07/28/26 16:25:50] INFO     Terminating session: None    streamable_http.py:788
 [07/28/26 16:27:18] WARNING  Invalid Host header:       transport_security.py:64
-                             mirae.uxis.co.kr                                   
+                             [SERVER_URL]                                   
 INFO:     [MASKED_IP]:47138 - "GET /mcp HTTP/1.1" 421 Misdirected Request
                     INFO     Terminating session: None    streamable_http.py:788
 INFO:     [MASKED_IP]:33498 - "GET /mc HTTP/1.1" 404 Not Found

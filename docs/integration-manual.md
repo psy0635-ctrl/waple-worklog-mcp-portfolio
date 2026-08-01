@@ -285,7 +285,7 @@ openssl s_client -connect [SERVER_URL]:443 -servername [SERVER_URL] < /dev/null 
 `Certificate chain`에 **leaf와 중간 CA가 모두** 표시되어야 정상입니다.
 
 ```
- 0 s:CN=*.uxis.co.kr
+ 0 s:CN=*.[SERVER_URL]
  1 s:C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication CA DV R36
 ```
 

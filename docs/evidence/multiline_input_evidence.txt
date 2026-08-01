@@ -4,6 +4,8 @@ tomorrow_plan · memo 여러 줄 입력 서식 버그 — 수정 전/후 실측 
 
 작성일  : 2026-07-30
 관련 커밋: 수정 전(버그 상태) ad8ce45 / fix 47e38ba / test c96de9a
+마스킹  : 실제 도메인 -> [SERVER_URL] 로 치환하였습니다.
+          그 외 출력은 원문 그대로입니다.
 
 ## 개요
 
@@ -244,13 +246,13 @@ Git Bash 사용, 리다이렉션 인코딩은 UTF-8):
 8
 
 ### 2. 생존 확인
-# 명령: curl -s -o /dev/null -w "%{http_code}\n" https://mirae.uxis.co.kr/llm/mcp
+# 명령: curl -s -o /dev/null -w "%{http_code}\n" https://[SERVER_URL]/llm/mcp
 # 406이 정상 (Accept 헤더 없이 호출했기 때문)
 406
 
 ### 3. chat_tasklog 단발 호출 (여러 줄 입력 4종)
 # 명령:
-#   curl -s -X POST https://mirae.uxis.co.kr/llm/mcp \
+#   curl -s -X POST https://[SERVER_URL]/llm/mcp \
 #     -H "Content-Type: application/json" \
 #     -H "Accept: application/json, text/event-stream" \
 #     -d '<아래 JSON>'
