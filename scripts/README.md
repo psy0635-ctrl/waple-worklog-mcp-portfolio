@@ -45,7 +45,7 @@ python3 -m venv ~/.venv-pdf
 
 ```bash
 sudo apt-get install -y fonts-noto-cjk fonts-dejavu-core \
-  fonts-noto-color-emoji poppler-utils python3-venv
+  fonts-noto-color-emoji python3-venv
 ```
 
 | 용도 | 폰트 |
