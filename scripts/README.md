@@ -10,6 +10,12 @@
 python scripts/build_pdf.py
 ```
 
+리눅스에서는 시스템 파이썬이 아니라 위에서 만든 venv 파이썬을 지정합니다.
+
+```bash
+~/.venv-pdf/bin/python scripts/build_pdf.py
+```
+
 | 구분 | 경로 |
 | --- | --- |
 | 입력 | `docs/waple-worklog-mcp-상세설명.md` |
@@ -26,14 +32,20 @@ python scripts/build_pdf.py
 
 ### 파이썬 패키지
 
+Ubuntu 24.04 는 시스템 파이썬에 직접 설치하는 것을 막아 두었습니다(PEP 668).
+venv 를 새로 만들어 그 안에 설치합니다. 레포 안의 `.venv` 는 Windows 용
+(`Scripts/`)이므로 섞이지 않도록 레포 밖(홈 디렉터리)에 따로 둡니다.
+
 ```bash
-pip install weasyprint markdown
+python3 -m venv ~/.venv-pdf
+~/.venv-pdf/bin/pip install weasyprint markdown
 ```
 
 ### 폰트
 
 ```bash
-sudo apt-get install -y fonts-noto-cjk fonts-dejavu-core fonts-noto-color-emoji
+sudo apt-get install -y fonts-noto-cjk fonts-dejavu-core \
+  fonts-noto-color-emoji poppler-utils python3-venv
 ```
 
 | 용도 | 폰트 |
