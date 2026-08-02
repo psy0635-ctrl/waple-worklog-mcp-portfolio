@@ -400,6 +400,8 @@ nginx (리버스 프록시, HTTPS) · systemd (사용자 서비스)
 
 - 원격 모드에서는 Git 기록·토큰 사용량 자동 수집이 원리상 불가능한 구조적 한계
   (현재는 차단 후 `chat_tasklog` 로 안내하며, 대체 수집 경로는 없음)
+- `docs/waple-worklog-mcp-상세설명.pdf` 재생성 필요
+  (반영 대상: 자동화 테스트 총계, 정책 문장(포트) — WSL(Ubuntu) 환경 필요, `scripts/README.md` 참고)
 
 ---
 
