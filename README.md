@@ -154,7 +154,7 @@ python -m pytest -q
 ```
 
 ```
-41 passed, 1 skipped
+70 passed, 1 skipped
 ```
 
 `skipped` 1건은 로그 폴더 대소문자 혼재 케이스입니다.

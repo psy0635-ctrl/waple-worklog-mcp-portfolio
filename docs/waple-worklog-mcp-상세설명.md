@@ -14,7 +14,7 @@
 | 도메인 | HR SaaS 플랫폼의 업무일지 자동화 |
 | 본인 역할 | 팀장 겸 **MCP 서버 설계·개발 전담** |
 | 기술 스택 | Python, MCP Python SDK(FastMCP), requests, pytest, nginx, systemd |
-| 산출물 | MCP 서버 1식, 연동 매뉴얼, 배포 운영 가이드, 자동화 테스트 7종 41케이스 |
+| 산출물 | MCP 서버 1식, 연동 매뉴얼, 배포 운영 가이드, 자동화 테스트 8종 70케이스 |
 
 팀은 지표 설계·AI 리포트 파트와 MCP 파트로 나뉘어 진행하였으며,
 본 문서는 제가 담당한 MCP 서버 파트만을 다룹니다.
@@ -347,7 +347,7 @@ claude.ai 웹에서 커스텀 커넥터로 등록은 되지만, 실제 도구 �
 
 ```bash
 python -m pytest -q
-# 41 passed, 1 skipped
+# 70 passed, 1 skipped
 ```
 
 `skipped` 1건은 로그 폴더 대소문자 혼재 케이스입니다.
