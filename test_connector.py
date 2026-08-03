@@ -361,3 +361,58 @@ def test_auth_guide_is_shared_by_both_tools():
     b = _http_reply("waple_login", {})
     assert server._HEADER_AUTH_GUIDE in a
     assert server._HEADER_AUTH_GUIDE in b
+
+
+# ── [투명 포맷 전환] 재표시 지시문 출처 노출 확인 ──────────────────────
+
+def test_redisplay_instruction_no_longer_hides_from_user():
+    """"사용자에게 보여주지 마세요" 류 은닉 지시가 다시 들어오지 않는지.
+
+    형태를 좁게 잡으면 다른 표현으로 재발할 수 있어 여러 변형을 검사한다
+    (8/1 check_secrets 패턴 확장과 같은 취지).
+    """
+    banned = [
+        "보여주지 마세요",
+        "사용자에게 보여주지",
+        "숨기",
+        "표시하지 마",
+        "노출하지 마",
+        "출력하지 마",
+        "문단은 생략",
+        "안내는 생략",
+    ]
+    for phrase in banned:
+        assert phrase not in server._REDISPLAY_INSTRUCTION, phrase
+
+
+def test_redisplay_instruction_discloses_source():
+    """이 문단이 waple-worklog-mcp 서버가 삽입한 것임을 명시하는지."""
+    assert "waple-worklog-mcp" in server._REDISPLAY_INSTRUCTION
+
+
+def test_redisplay_instruction_keeps_required_functions():
+    """요약 금지·재호출 시 재표시·등록 대상 전체라는 사실 3가지가 남아있는지."""
+    text = server._REDISPLAY_INSTRUCTION
+    assert "요약" in text        # ① 요약하지 말 것
+    assert "다시" in text        # ② 재호출 시 재표시
+    assert "Waple" in text       # ③ 등록 대상 전체임을 알림
+
+
+def test_redisplay_instruction_is_shared_by_both_tools(monkeypatch):
+    """tasklog·chat_tasklog 두 도구가 같은 상수를 참조하는지."""
+    monkeypatch.setattr(server, "_get_repo_root", lambda: "/fake/repo")
+    monkeypatch.setattr(server, "_collect_today_commits", lambda root: [])
+    monkeypatch.setattr(server, "_collect_git_status",
+                        lambda root: {"staged": [], "unstaged": []})
+    monkeypatch.setattr(server, "_collect_git_diff_stat", lambda root: [])
+    monkeypatch.setattr(server, "_collect_today_token_usage", lambda: None)
+
+    a = asyncio.run(server.call_tool("tasklog", {"memo": "x"}))[0].text
+    b = asyncio.run(server.call_tool("chat_tasklog", {"memo": "x"}))[0].text
+    assert server._REDISPLAY_INSTRUCTION in a
+    assert server._REDISPLAY_INSTRUCTION in b
+
+    # _local은 _LAST_DRAFT와 같은 객체를 공유 — 지우면 stdio 경로가 조용히 깨짐
+    for scope in list(server._LAST_DRAFTS):
+        if scope != "_local":
+            server._LAST_DRAFTS.pop(scope, None)
