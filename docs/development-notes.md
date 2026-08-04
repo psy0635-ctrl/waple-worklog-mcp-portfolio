@@ -780,7 +780,9 @@ python -m pytest llm팀/test_connector.py -v
       금지 ②재호출 시 변경점 요약 후 재표시 ③등록 대상 전체임을 알림)은
       그대로 유지했다(462자 → 285자). 은닉 문구 재발 방지 회귀 테스트 포함
       `test_connector.py` 4케이스 추가, 로컬 stdio 실측 근거 남김
-      (`5917645`·`c361cc1`, 8/3)
+      (`5917645`·`c361cc1`, 8/3). 배포 서버 반영(e586249, 8/4) 후 실물
+      응답에서 출처 라벨이 게재되는 것을 확인
+      (`docs/evidence/redisplay_deploy_evidence.txt`)
 
 ## 16. 앞으로 해야 할 작업
 
