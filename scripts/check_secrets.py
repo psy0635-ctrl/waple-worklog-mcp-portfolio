@@ -143,6 +143,18 @@ def _is_real_host(token: str) -> bool:
     return bool(IPV4_RE.fullmatch(token) or DOMAIN_RE.fullmatch(token))
 
 
+def _leaked_hostport(host: str, port: str) -> bool:
+    """host:port 쌍이 노출로 볼 형태인지 판정한다.
+
+    IPv4 단독 검사(_allowed_ip)는 이미 127.0.0.1 등을 허용하는데,
+    이 함수는 그 결과를 참조하지 않고 포트만 봤다. 그 결과 허용된
+    루프백이어도 임시 포트(예: 클라이언트 접속 포트)가 붙으면 걸렸다.
+    """
+    return (_is_real_host(host)
+            and not _allowed_ip(host)
+            and port not in ALLOWED_PORTS)
+
+
 def scan_text(text: str) -> list[str]:
     """공개하면 안 되는 '형태'의 값을 찾아 정렬된 목록으로 돌려준다.
 
@@ -158,7 +170,7 @@ def scan_text(text: str) -> list[str]:
                if not _allowed_domain(v)]
     leaked += [v for v in EMAIL_RE.findall(text) if v not in ALLOWED_EMAILS]
     leaked += [f"{host}:{port}" for host, port in HOSTPORT_RE.findall(text)
-               if _is_real_host(host) and port not in ALLOWED_PORTS]
+               if _leaked_hostport(host, port)]
     leaked += SSH_CMD_RE.findall(text)
     return sorted(set(leaked))
 
