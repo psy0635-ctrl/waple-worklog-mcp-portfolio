@@ -1,0 +1,48 @@
+[검증] 배포 서버 재표시 지시문 투명 포맷 반영 확인 — 2026-08-04
+커밋: e586249 (팀 dev/mcp), 재시작 후 PID 2967407
+수집 명령:
+  curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8010/mcp
+  curl -s -X POST http://127.0.0.1:8010/mcp -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chat_tasklog","arguments":{"activities":"테스트"}}}' \
+    | grep -o 'waple-worklog-mcp 서버가 삽입한 안내\|보여주지 마'
+  tail -30 ~/mcp.log | sed -E '...(3단 보존 마스킹)...'
+결과: 생존 406 / 라벨 2건 / 은닉 문구 0건
+마스킹: 127.0.0.1은 내부 루프백임을 밝히기 위해 보존, 나머지 IPv4만 대체
+grep 출력(2026-08-04 수집 시점 출력, 재수집 아님):
+  waple-worklog-mcp 서버가 삽입한 안내
+  waple-worklog-mcp 서버가 삽입한 안내
+라벨 2건 사유(2026-08-04 배포 서버 응답 실측 확인): MCP 응답의 content와
+  structuredContent 양쪽에 같은 텍스트가 실리기 때문이며, 서버가 두 번
+  삽입하는 것이 아님(server.py 1201행 삽입은 1회)
+---
+ERROR:    ASGI callable returned without completing response.
+                    INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+                    INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+                    INFO     Terminating session: None    streamable_http.py:788
+ERROR:    ASGI callable returned without completing response.
+INFO:     Waiting for application shutdown.
+                    INFO     StreamableHTTP       streamable_http_manager.py:135
+                             session manager                                    
+                             shutting down                                      
+INFO:     Application shutdown complete.
+INFO:     Finished server process [3517422]
+INFO:     Started server process [2967407]
+INFO:     Waiting for application startup.
+[08/04/26 14:45:56] INFO     StreamableHTTP       streamable_http_manager.py:131
+                             session manager                                    
+                             started                                            
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     [MASKED_IP]:0 - "GET /mcp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50068 - "GET /mcp HTTP/1.1" 406 Not Acceptable
+[08/04/26 14:46:54] INFO     Terminating session: None    streamable_http.py:788
+INFO:     127.0.0.1:36236 - "POST /mcp HTTP/1.1" 200 OK
+[08/04/26 14:47:03] INFO     Processing request of type            server.py:733
+                             CallToolRequest                                    
+                    INFO     Terminating session: None    streamable_http.py:788
